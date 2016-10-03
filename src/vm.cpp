@@ -1,5 +1,5 @@
-#include "vm.h"
-#include "instructions.h"
+#include <acevm/vm.h>
+#include <acevm/instructions.h>
 
 #include <cstdio>
 #include <cassert>

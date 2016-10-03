@@ -1,4 +1,4 @@
-#include "bytecode_stream.h"
+#include <acevm/bytecode_stream.h>
 
 BytecodeStream::BytecodeStream(char *buffer, size_t size)
     : m_buffer(buffer),

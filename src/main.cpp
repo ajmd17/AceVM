@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "vm.h"
-#include "bytecode_stream.h"
-#include "instructions.h"
+#include <acevm/vm.h>
+#include <acevm/bytecode_stream.h>
+#include <acevm/instructions.h>
 
 void Test()
 {

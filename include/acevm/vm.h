@@ -1,10 +1,10 @@
 #ifndef VM_H
 #define VM_H
 
-#include "bytecode_stream.h"
-#include "stack_memory.h"
-#include "heap_memory.h"
-#include "exception.h"
+#include <acevm/bytecode_stream.h>
+#include <acevm/stack_memory.h>
+#include <acevm/heap_memory.h>
+#include <acevm/exception.h>
 
 #include <cstdint>
 #include <array>
