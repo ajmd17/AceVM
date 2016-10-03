@@ -7,10 +7,12 @@
 VM::VM(BytecodeStream *bs)
     : m_bs(bs)
 {
-    m_registers.r0 = nullptr;
-    m_registers.r1 = nullptr;
-    m_registers.r2 = nullptr;
-    m_registers.r3 = nullptr;
+    size_t num_registers = sizeof(m_registers.reg) / sizeof(m_registers.reg[0]);
+    
+    // initalize all registers to nullptr
+    for (size_t i = 0; i < num_registers; i++) {
+        m_registers.reg[i] = nullptr;
+    }
 }
 
 VM::~VM()
