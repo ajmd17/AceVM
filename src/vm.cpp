@@ -1,18 +1,14 @@
 #include <acevm/vm.h>
 #include <acevm/instructions.h>
 
+#include <iostream>
 #include <cstdio>
 #include <cassert>
 
 VM::VM(BytecodeStream *bs)
     : m_bs(bs)
 {
-    size_t num_registers = sizeof(m_registers.reg) / sizeof(m_registers.reg[0]);
-    
-    // initalize all registers to nullptr
-    for (size_t i = 0; i < num_registers; i++) {
-        m_registers.reg[i] = nullptr;
-    }
+    m_registers.m_flags = NONE;
 }
 
 VM::~VM()
@@ -21,7 +17,7 @@ VM::~VM()
 
 void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 {
-    size_t num_registers = sizeof(m_registers.reg) / sizeof(m_registers.reg[0]);
+    const size_t num_registers = sizeof(m_registers.m_reg) / sizeof(m_registers.m_reg[0]);
     
     if (num_args > num_registers) {
         // more arguments than there are registers
@@ -42,11 +38,6 @@ void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 
         ThrowException(Exception(buffer));
     } else {
-        // push values to stack from registers
-        for (int i = num_args - 1; i >= 0; i--) {
-            m_stack.Push(*m_registers.reg[i]);
-        }
-
         // store current address
         uint32_t previous = m_bs->Position();
         // seek to the function's address
@@ -69,7 +60,7 @@ void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 
 void VM::ThrowException(const Exception &exception)
 {
-    std::printf("Runtime error: %s\n", exception.ToString().c_str());
+    std::printf("runtime error: %s\n", exception.ToString().c_str());
     // seek to end of bytecode stream
     m_bs->Seek(m_bs->Size());
 }
@@ -77,6 +68,7 @@ void VM::ThrowException(const Exception &exception)
 void VM::HandleInstruction(uint8_t code)
 {
     switch (code) {
+#if 0
     case PUSH_I32:
     {
         StackValue value;
@@ -149,7 +141,59 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg, 1);
 
         // push register value to stack
-        m_stack.Push(*m_registers.reg[reg]);
+        m_stack.Push(m_registers[reg]);
+
+        break;
+    }
+    case MOV:
+    {
+        uint16_t offset;
+        m_bs->Read(&offset, 2);
+
+        uint8_t reg;
+        m_bs->Read(&reg, 1);
+
+        // copy value at offset into register
+        m_registers[reg] = m_stack[m_stack.GetStackPointer() - offset - 1];
+
+        break;
+    }
+#endif
+    case LOAD_I32:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // get register value given
+        StackValue &value = m_registers[reg];
+        value.m_type = StackValue::INT32;
+
+        // read 32-bit integer into register value
+        m_bs->Read(&value.m_value.i32);
+
+        break;
+    }
+    case LOAD_I64:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // get register value given
+        StackValue &value = m_registers[reg];
+        value.m_type = StackValue::INT64;
+
+        // read 64-bit integer into register value
+        m_bs->Read(&value.m_value.i64);
+
+        break;
+    }
+    case PUSH:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // push a copy of the register value to the top of the stack
+        m_stack.Push(m_registers[reg]);
 
         break;
     }
@@ -159,69 +203,70 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
-    case MOV:
-    {
-        uint16_t index;
-        m_bs->Read(&index, 2);
-
-        uint8_t reg;
-        m_bs->Read(&reg, 1);
-
-        m_registers.reg[reg] = &m_stack[index];
-
-        break;
-    }
     case JMP:
     {
-        uint8_t address_index;
-        m_bs->Read(&address_index, 1);
+        uint8_t reg;
+        m_bs->Read(&reg);
 
-        StackValue *addr = m_registers.reg[address_index];
-        assert(addr != nullptr && "register value must not be null");
-        assert(addr->m_type == StackValue::ADDRESS && "register must hold an address");
+        const StackValue &addr = m_registers[reg];
+        assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
-        m_bs->Seek(addr->m_value.addr);
+        m_bs->Seek(addr.m_value.addr);
 
         break;
     }
-    case JT:
+    case JE:
     {
-        uint8_t condition_index;
-        m_bs->Read(&condition_index, 1);
+        uint8_t reg;
+        m_bs->Read(&reg);
 
-        uint8_t address_index;
-        m_bs->Read(&address_index, 1);
+        if (m_registers.m_flags == EQUAL) {
+            const StackValue &addr = m_registers[reg];
+            assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
-        StackValue *cond = m_registers.reg[condition_index];
-        assert(cond != nullptr && "register value must not be null");
-
-        StackValue *addr = m_registers.reg[address_index];
-        assert(addr != nullptr && "register value must not be null");
-        assert(addr->m_type == StackValue::ADDRESS && "register must hold an address");
-
-        if (GetValueInt64(*cond)) {
-            m_bs->Seek(addr->m_value.addr);
+            m_bs->Seek(addr.m_value.addr);
         }
 
         break;
     }
-    case JF:
+    case JNE:
     {
-        uint8_t condition_index;
-        m_bs->Read(&condition_index, 1);
+        uint8_t reg;
+        m_bs->Read(&reg);
 
-        uint8_t address_index;
-        m_bs->Read(&address_index, 1);
+        if (m_registers.m_flags != EQUAL) {
+            const StackValue &addr = m_registers[reg];
+            assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
-        StackValue *cond = m_registers.reg[condition_index];
-        assert(cond != nullptr && "register value must not be null");
+            m_bs->Seek(addr.m_value.addr);
+        }
 
-        StackValue *addr = m_registers.reg[address_index];
-        assert(addr != nullptr && "register value must not be null");
-        assert(addr->m_type == StackValue::ADDRESS && "register must hold an address");
+        break;
+    }
+    case JG:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
 
-        if (!GetValueInt64(*cond)) {
-            m_bs->Seek(addr->m_value.addr);
+        if (m_registers.m_flags == GREATER) {
+            const StackValue &addr = m_registers[reg];
+            assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
+
+            m_bs->Seek(addr.m_value.addr);
+        }
+
+        break;
+    }
+    case JGE:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        if (m_registers.m_flags == GREATER || m_registers.m_flags == EQUAL) {
+            const StackValue &addr = m_registers[reg];
+            assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
+
+            m_bs->Seek(addr.m_value.addr);
         }
 
         break;
@@ -229,36 +274,111 @@ void VM::HandleInstruction(uint8_t code)
     case CALL:
     {
         uint8_t reg;
-        m_bs->Read(&reg, 1);
+        m_bs->Read(&reg);
 
         uint8_t num_args;
-        m_bs->Read(&num_args, 1);
+        m_bs->Read(&num_args);
 
-        StackValue *func = m_registers.reg[reg];
-        assert(func != nullptr && "register value must not be null");
+        InvokeFunction(m_registers[reg], num_args);
 
-        InvokeFunction(*func, num_args);
+        break;
+    }
+    case CMP:
+    {
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
+
+        uint8_t rhs_reg;
+        m_bs->Read(&rhs_reg);
+
+        // load values from registers
+        StackValue &lhs = m_registers[lhs_reg];
+        StackValue &rhs = m_registers[rhs_reg];
+
+        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+            int64_t left = GetValueInt64(lhs);
+            int64_t right = GetValueInt64(rhs);
+
+            if (left > right) {
+                // set GREATER flag
+                m_registers.m_flags = GREATER;
+            } else if (left == right) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
+            double left = GetValueDouble(lhs);
+            double right = GetValueDouble(rhs);
+
+            if (left > right) {
+                // set GREATER flag
+                m_registers.m_flags = GREATER;
+            } else if (left == right) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER && 
+            rhs.m_type == StackValue::HEAP_POINTER) {
+
+            // compare memory addresses
+            if (lhs.m_value.ptr > rhs.m_value.ptr) {
+                // set GREATER flag
+                m_registers.m_flags = GREATER;
+            } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (lhs.m_type == StackValue::FUNCTION && 
+            rhs.m_type == StackValue::FUNCTION) {
+
+            // compare function address
+            if (lhs.m_value.func.address > rhs.m_value.func.address) {
+                // set GREATER flag
+                m_registers.m_flags = GREATER;
+            } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else {
+            char buffer[256];
+            std::sprintf(buffer, "cannot compare '%s' with '%s'",
+                lhs.GetTypeString(), rhs.GetTypeString());
+
+            ThrowException(Exception(buffer));
+        }
 
         break;
     }
     case ADD:
     {
+        uint8_t dest;
+        m_bs->Read(&dest);
+
+        uint8_t src;
+        m_bs->Read(&src);
+
         // load values from registers
-        StackValue *lhs = m_registers.r0;
-        StackValue *rhs = m_registers.r1;
-
-        assert(lhs != nullptr && "left-hand side of equation cannot be null");
-        assert(rhs != nullptr && "right-hand side of equation cannot be null");
-
-        const StackValue &left_ref = *lhs;
-        const StackValue &right_ref = *rhs;
+        StackValue &lhs = m_registers[dest];
+        StackValue &rhs = m_registers[src];
 
         StackValue result;
-        result.m_type = MATCH_TYPES(left_ref, right_ref);
+        result.m_type = MATCH_TYPES(lhs, rhs);
 
-        if (IS_VALUE_INTEGRAL(left_ref) && IS_VALUE_INTEGRAL(right_ref)) {
-            int64_t left = GetValueInt64(left_ref);
-            int64_t right = GetValueInt64(right_ref);
+        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+            int64_t left = GetValueInt64(lhs);
+            int64_t right = GetValueInt64(rhs);
             int64_t result_value = left + right;
 
             if (result.m_type == StackValue::INT32) {
@@ -266,10 +386,9 @@ void VM::HandleInstruction(uint8_t code)
             } else {
                 result.m_value.i64 = result_value;
             }
-
-        } else if (IS_VALUE_FLOATING_POINT(left_ref) || IS_VALUE_FLOATING_POINT(right_ref)) {
-            double left = GetValueDouble(left_ref);
-            double right = GetValueDouble(right_ref);
+        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
+            double left = GetValueDouble(lhs);
+            double right = GetValueDouble(rhs);
             double result_value = left + right;
 
             if (result.m_type == StackValue::FLOAT) {
@@ -277,21 +396,23 @@ void VM::HandleInstruction(uint8_t code)
             } else {
                 result.m_value.d = result_value;
             }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_ADD__' function and call it
         } else {
             char buffer[256];
             std::sprintf(buffer, "cannot add '%s' with '%s'",
-                left_ref.GetTypeString(), right_ref.GetTypeString());
+                lhs.GetTypeString(), rhs.GetTypeString());
 
             ThrowException(Exception(buffer));
         }
 
-        // push the resulting value onto the stack
-        m_stack.Push(result);
+        // set the desination register to be the result
+        m_registers[dest] = result;
 
         break;
     }
     default:
-        std::printf("Unknown instruction %d referenced at location: 0x%08x\n",
+        std::printf("unknown instruction '%d' referenced at location: 0x%08x\n",
             (int)code, (int)m_bs->Position());
 
         // seek to end of bytecode stream

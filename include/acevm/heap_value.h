@@ -1,6 +1,7 @@
 #ifndef HEAP_VALUE_H
 #define HEAP_VALUE_H
 
+#include <type_traits>
 #include <typeinfo>
 #include <cstdint>
 

@@ -15,6 +15,11 @@ public:
     Stack(const Stack &other) = delete;
     ~Stack();
 
+    inline size_t GetStackPointer() const
+    {
+        return m_sp;
+    }
+
     inline StackValue &operator[](size_t index)
     {
         assert(index < stack_size && "out of bounds");

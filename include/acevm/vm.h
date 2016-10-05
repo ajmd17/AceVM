@@ -6,8 +6,10 @@
 #include <acevm/heap_memory.h>
 #include <acevm/exception.h>
 
-#include <cstdint>
 #include <array>
+#include <limits>
+#include <cstdint>
+#include <cstdio>
 
 #define IS_VALUE_INTEGRAL(stack_value) \
         ((stack_value).m_type == StackValue::INT32 || \
@@ -20,21 +22,24 @@
 #define MATCH_TYPES(lhs, rhs) \
         ((lhs).m_type < (rhs).m_type) ? (rhs).m_type : (lhs).m_type
 
-struct Registers {
-    union {
-        struct {
-            StackValue *r0;
-            StackValue *r1;
-            StackValue *r2;
-            StackValue *r3;
-            StackValue *r4;
-            StackValue *r5;
-            StackValue *r6;
-            StackValue *r7;
-        };
+enum CompareFlags : int32_t {
+    NONE = 0x00,
+    EQUAL = 0x01,
+    GREATER = 0x02,
+    // note that there is no LESS flag.
+    // the compiler must make appropriate changes
+    // to insure that the operands are switched to
+    // use only the GREATER or EQUAL flags.
+};
 
-        StackValue *reg[8];
-    };
+struct Registers {
+    StackValue m_reg[8];
+    int32_t m_flags;
+
+    inline StackValue &operator[](uint8_t index)
+    {
+        return m_reg[index];
+    }
 };
 
 class VM {
