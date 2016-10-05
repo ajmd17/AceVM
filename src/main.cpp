@@ -25,15 +25,11 @@ void Test()
         POP,
         POP
     };
-#endif
-
-    char bytecode[] = {
-        
-    };
 
     std::ofstream out(filename, std::ios::out | std::ios::binary);
     out.write(bytecode, sizeof(bytecode));
     out.close();
+#endif
 
     // load bytecode from file
     std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
@@ -54,7 +50,7 @@ void Test()
     VM vm(&bytecode_stream);
     vm.Execute();
 
-    std::cout << "top value (int32): " << vm.GetStack().Top().m_value.i32 << "\n";
+    std::cout << "registers[0] (int32): " << vm.GetRegisters()[0].m_value.i32 << "\n";
 
     delete[] bytecodes;
 
