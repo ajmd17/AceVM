@@ -24,6 +24,7 @@ enum Instructions : char {
     LOAD_F,    // load_f    [% reg, f val]
     LOAD_D,    // load_d    [% reg, d val]
     LOAD_ADDR, // load_addr [% reg, i32 val]
+    LOAD_LOCAL, // load_local [% reg, $ idx]
 
     /* Push a value from register to the stack */
     PUSH,     // push     [% src]
@@ -44,7 +45,7 @@ enum Instructions : char {
     CMP, // cmp [% lhs, % rhs]
 
     /* Mathematical operations */
-    ADD, // add [% lhs, % rhs]
+    ADD, // add [% lhs, % rhs, % dst]
     SUB,
     MUL,
     DIV,

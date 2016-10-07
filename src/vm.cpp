@@ -96,6 +96,20 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case LOAD_LOCAL:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        uint16_t offset;
+        m_bs->Read(&offset);
+
+        // read value from stack at (sp - offset)
+        // into the given register
+        m_registers[reg] = m_stack[m_stack.GetStackPointer() - offset];
+
+        break;
+    }
     case PUSH:
     {
         uint8_t reg;
@@ -272,15 +286,18 @@ void VM::HandleInstruction(uint8_t code)
     }
     case ADD:
     {
-        uint8_t dest;
-        m_bs->Read(&dest);
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
 
-        uint8_t src;
-        m_bs->Read(&src);
+        uint8_t rhs_reg;
+        m_bs->Read(&rhs_reg);
+
+        uint8_t dst_reg;
+        m_bs->Read(&dst_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[dest];
-        StackValue &rhs = m_registers[src];
+        StackValue &lhs = m_registers[lhs_reg];
+        StackValue &rhs = m_registers[rhs_reg];
 
         StackValue result;
         result.m_type = MATCH_TYPES(lhs, rhs);
@@ -316,7 +333,60 @@ void VM::HandleInstruction(uint8_t code)
         }
 
         // set the desination register to be the result
-        m_registers[dest] = result;
+        m_registers[dst_reg] = result;
+
+        break;
+    }
+    case MUL:
+    {
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
+
+        uint8_t rhs_reg;
+        m_bs->Read(&rhs_reg);
+
+        uint8_t dst_reg;
+        m_bs->Read(&dst_reg);
+
+        // load values from registers
+        StackValue &lhs = m_registers[lhs_reg];
+        StackValue &rhs = m_registers[rhs_reg];
+
+        StackValue result;
+        result.m_type = MATCH_TYPES(lhs, rhs);
+
+        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+            int64_t left = GetValueInt64(lhs);
+            int64_t right = GetValueInt64(rhs);
+            int64_t result_value = left * right;
+
+            if (result.m_type == StackValue::INT32) {
+                result.m_value.i32 = (int32_t)result_value;
+            } else {
+                result.m_value.i64 = result_value;
+            }
+        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
+            double left = GetValueDouble(lhs);
+            double right = GetValueDouble(rhs);
+            double result_value = left * right;
+
+            if (result.m_type == StackValue::FLOAT) {
+                result.m_value.f = (float)result_value;
+            } else {
+                result.m_value.d = result_value;
+            }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_MUL__' function and call it
+        } else {
+            char buffer[256];
+            std::sprintf(buffer, "cannot multiply '%s' with '%s'",
+                lhs.GetTypeString(), rhs.GetTypeString());
+
+            ThrowException(Exception(buffer));
+        }
+
+        // set the desination register to be the result
+        m_registers[dst_reg] = result;
 
         break;
     }

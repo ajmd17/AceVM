@@ -7,29 +7,14 @@
 
 #include <acevm/ace_string.h>
 
+#include <chrono>
+
 void Test()
 {
-    const char filename[] = "bytecode.bin";
-#if 0
-    char bytecode[] = {
-        PUSH_ADDRESS,0x0B, 0x00, 0x00, 0x00, /*jumps to PUSH_I32 part*/
-        MOV,         0x00, 0x00,       0x03, /*copy address to register 3*/
-        JMP,         0x03,
-        PUSH_I32,    0x14, 0x00, 0x00, 0x00,
-        PUSH_FLOAT,  0x00, 0x00, 0x20, 0x40,
-        MOV,         0x01, 0x00,       0x00, /*copy i32 to register 0*/
-        MOV,         0x00, 0x00,       0x01, /*copy float to register 1*/
-        ADD,         0x00/*src*/,0x01/*dest*/,
-        PUSH_REG,    0x01,
-        POP,
-        POP,
-        POP
-    };
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    start = std::chrono::high_resolution_clock::now();
 
-    std::ofstream out(filename, std::ios::out | std::ios::binary);
-    out.write(bytecode, sizeof(bytecode));
-    out.close();
-#endif
+    const char *filename = "bytecode.bin";
 
     // load bytecode from file
     std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
@@ -54,27 +39,10 @@ void Test()
 
     delete[] bytecodes;
 
-    /*HeapValue *v1 = vm.GetHeap().Alloc();
-
-    StackValue sv1;
-    sv1.m_type = StackValue::FLOAT;
-    sv1.m_value.f = 3.5f;
-
-    StackValue sv2;
-    sv2.m_type = StackValue::INT64;
-    sv2.m_value.i64 = 49942;
-
-    vm.GetStack().Push(sv1);
-    vm.GetStack().Push(sv2);
-
-    
-
-    std::cout << "Heap Dump: \n\n" << vm.GetHeap() << "\n\n";
-    std::cout << "Sweep()\n\n";
-
-    vm.GetHeap().Sweep();
-
-    std::cout << "Heap Dump: \n\n" << vm.GetHeap() << "\n\n";*/
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_seconds);
+    std::cout << "elapsed time: " << elapsed_ms.count() << "ms\n";
 }
 
 int main()
