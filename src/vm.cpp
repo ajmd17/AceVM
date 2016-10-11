@@ -105,8 +105,21 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&offset);
 
         // read value from stack at (sp - offset)
-        // into the given register
+        // into the the register
         m_registers[reg] = m_stack[m_stack.GetStackPointer() - offset];
+
+        break;
+    }
+    case MOV:
+    {
+        uint16_t offset;
+        m_bs->Read(&offset);
+
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // copy value from register to stack value at (sp - offset)
+        m_stack[m_stack.GetStackPointer() - offset] = m_registers[reg];
 
         break;
     }
