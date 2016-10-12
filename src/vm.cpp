@@ -339,7 +339,60 @@ void VM::HandleInstruction(uint8_t code)
             // TODO: Check for '__OPR_ADD__' function and call it
         } else {
             char buffer[256];
-            std::sprintf(buffer, "cannot add '%s' with '%s'",
+            std::sprintf(buffer, "cannot add types '%s' and '%s'",
+                lhs.GetTypeString(), rhs.GetTypeString());
+
+            ThrowException(Exception(buffer));
+        }
+
+        // set the desination register to be the result
+        m_registers[dst_reg] = result;
+
+        break;
+    }
+    case SUB:
+    {
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
+
+        uint8_t rhs_reg;
+        m_bs->Read(&rhs_reg);
+
+        uint8_t dst_reg;
+        m_bs->Read(&dst_reg);
+
+        // load values from registers
+        StackValue &lhs = m_registers[lhs_reg];
+        StackValue &rhs = m_registers[rhs_reg];
+
+        StackValue result;
+        result.m_type = MATCH_TYPES(lhs, rhs);
+
+        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+            int64_t left = GetValueInt64(lhs);
+            int64_t right = GetValueInt64(rhs);
+            int64_t result_value = left - right;
+
+            if (result.m_type == StackValue::INT32) {
+                result.m_value.i32 = (int32_t)result_value;
+            } else {
+                result.m_value.i64 = result_value;
+            }
+        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
+            double left = GetValueDouble(lhs);
+            double right = GetValueDouble(rhs);
+            double result_value = left - right;
+
+            if (result.m_type == StackValue::FLOAT) {
+                result.m_value.f = (float)result_value;
+            } else {
+                result.m_value.d = result_value;
+            }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_SUB__' function and call it
+        } else {
+            char buffer[256];
+            std::sprintf(buffer, "cannot subtract types '%s' and '%s'",
                 lhs.GetTypeString(), rhs.GetTypeString());
 
             ThrowException(Exception(buffer));
@@ -392,7 +445,7 @@ void VM::HandleInstruction(uint8_t code)
             // TODO: Check for '__OPR_MUL__' function and call it
         } else {
             char buffer[256];
-            std::sprintf(buffer, "cannot multiply '%s' with '%s'",
+            std::sprintf(buffer, "cannot multiply types '%s' and '%s'",
                 lhs.GetTypeString(), rhs.GetTypeString());
 
             ThrowException(Exception(buffer));
