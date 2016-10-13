@@ -40,9 +40,8 @@ void Test()
     delete[] bytecodes;
 
     end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_seconds);
-    std::cout << "elapsed time: " << elapsed_ms.count() << "ms\n";
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(end - start).count();
+    std::cout << "elapsed time: " << elapsed_ms << "s\n";
 }
 
 int main()
