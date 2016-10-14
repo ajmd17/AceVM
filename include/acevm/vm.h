@@ -3,6 +3,7 @@
 
 #include <acevm/bytecode_stream.h>
 #include <acevm/stack_memory.h>
+#include <acevm/static_memory.h>
 #include <acevm/heap_memory.h>
 #include <acevm/exception.h>
 
@@ -58,6 +59,7 @@ public:
 
 private:
     Stack m_stack;
+    StaticMemory m_static_memory;
     Heap m_heap;
     Registers m_registers;
 

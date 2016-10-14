@@ -1,5 +1,9 @@
 #include <acevm/vm.h>
 #include <acevm/instructions.h>
+#include <acevm/stack_value.h>
+#include <acevm/heap_value.h>
+
+#include <common/utf8.h>
 
 #include <iostream>
 #include <cstdio>
@@ -68,6 +72,32 @@ void VM::ThrowException(const Exception &exception)
 void VM::HandleInstruction(uint8_t code)
 {
     switch (code) {
+    case STORE_STATIC_STRING:
+    {
+        // get string length
+        uint32_t len;
+        m_bs->Read(&len);
+
+        // read string based on length
+        char *str = new char[len + 1];
+        m_bs->Read(str, len);
+        str[len] = 0;
+
+        // the value will be freed on
+        // the destructor call of m_static_memory
+        HeapValue *hv = new HeapValue();
+        hv->Assign(Utf8String(str));
+
+        StackValue sv;
+        sv.m_type = StackValue::HEAP_POINTER;
+        sv.m_value.ptr = hv;
+
+        m_static_memory.Store(sv);
+
+        delete[] str;
+
+        break;
+    }
     case LOAD_I32:
     {
         uint8_t reg;
@@ -107,6 +137,20 @@ void VM::HandleInstruction(uint8_t code)
         // read value from stack at (sp - offset)
         // into the the register
         m_registers[reg] = m_stack[m_stack.GetStackPointer() - offset];
+
+        break;
+    }
+    case LOAD_STATIC:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        uint32_t index;
+        m_bs->Read(&index);
+
+        // read value from static memory 
+        // at the index into the the register
+        m_registers[reg] = m_static_memory[index];
 
         break;
     }
