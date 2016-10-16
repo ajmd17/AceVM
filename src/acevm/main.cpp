@@ -34,9 +34,7 @@ void Test()
 
     VM vm(&bytecode_stream);
     vm.Execute();
-
-    std::cout << "registers[0] (int32): " << vm.GetRegisters()[0].m_value.i32 << "\n";
-
+    
     delete[] bytecodes;
 
     end = std::chrono::high_resolution_clock::now();

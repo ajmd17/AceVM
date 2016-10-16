@@ -19,6 +19,54 @@ VM::~VM()
 {
 }
 
+void VM::Echo(StackValue &value)
+{
+    switch (value.m_type) {
+    case StackValue::INT32:
+        ucout << value.m_value.i32;
+        break;
+    case StackValue::INT64:
+        ucout << value.m_value.i64;
+        break;
+    case StackValue::FLOAT:
+        ucout << value.m_value.f;
+        break;
+    case StackValue::DOUBLE:
+        ucout << value.m_value.d;
+        break;
+    case StackValue::HEAP_POINTER:
+        if (value.m_value.ptr != nullptr && 
+            value.m_value.ptr->TypeCompatible<Utf8String>()) {
+            // print string value
+            ucout << value.m_value.ptr->Get<Utf8String>();
+        } else {
+            // print address
+            char str[256];
+            std::sprintf(str, "pointer<%p>", (void*)value.m_value.ptr);
+            ucout << str;
+        }
+
+        break;
+    case StackValue::FUNCTION: 
+    {
+        char str[256];
+        std::sprintf(str, "function<%du, %du>",
+            value.m_value.func.address, value.m_value.func.num_args);
+        ucout << str;
+
+        break;
+    }
+    case StackValue::ADDRESS:
+    {
+        char str[256];
+        std::sprintf(str, "address<%du>", value.m_value.addr);
+        ucout << str;
+
+        break;
+    }
+    }
+}
+
 void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 {
     const size_t num_registers = sizeof(m_registers.m_reg) / sizeof(m_registers.m_reg[0]);
@@ -180,6 +228,22 @@ void VM::HandleInstruction(uint8_t code)
     case POP:
     {
         m_stack.Pop();
+
+        break;
+    }
+    case ECHO:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // print out the value of the item in the register
+        Echo(m_registers[reg]);
+
+        break;
+    }
+    case ECHO_NEWLINE:
+    {
+        ucout << "\n";
 
         break;
     }

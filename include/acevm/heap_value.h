@@ -46,7 +46,9 @@ public:
     template <typename T>
     inline bool TypeCompatible() const
     {
-        return m_holder->TypeInfo() == typeid(std::decay<T>::type);
+        typedef typename std::decay<T>::type U;
+
+        return m_holder->TypeInfo() == typeid(U);
     }
 
     template <typename T>
@@ -76,6 +78,11 @@ public:
     inline bool IsNull() const
     {
         return m_holder == nullptr;
+    }
+
+    inline const std::type_info &TypeInfo() const
+    {
+        return m_holder->TypeInfo();
     }
 
 private:

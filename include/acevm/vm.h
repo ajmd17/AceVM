@@ -53,6 +53,7 @@ public:
     inline Heap &GetHeap() { return m_heap; }
     inline Registers &GetRegisters() { return m_registers; }
 
+    void Echo(StackValue &value);
     void InvokeFunction(StackValue &value, uint8_t num_args);
     void HandleInstruction(uint8_t code);
     void Execute();
