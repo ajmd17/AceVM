@@ -146,6 +146,19 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case STORE_STATIC_ADDRESS:
+    {
+        uint32_t value;
+        m_bs->Read(&value);
+
+        StackValue sv;
+        sv.m_type = StackValue::ADDRESS;
+        sv.m_value.addr = value;
+
+        m_static_memory.Store(sv);
+
+        break;
+    }
     case LOAD_I32:
     {
         uint8_t reg;
@@ -174,6 +187,34 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case LOAD_F:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // get register value given
+        StackValue &value = m_registers[reg];
+        value.m_type = StackValue::FLOAT;
+
+        // read float into register value
+        m_bs->Read(&value.m_value.f);
+
+        break;
+    }
+    case LOAD_D:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // get register value given
+        StackValue &value = m_registers[reg];
+        value.m_type = StackValue::DOUBLE;
+
+        // read double into register value
+        m_bs->Read(&value.m_value.d);
+
+        break;
+    }
     case LOAD_LOCAL:
     {
         uint8_t reg;
@@ -193,7 +234,7 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        uint32_t index;
+        uint16_t index;
         m_bs->Read(&index);
 
         // read value from static memory 

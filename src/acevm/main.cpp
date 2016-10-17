@@ -5,48 +5,64 @@
 #include <acevm/bytecode_stream.h>
 #include <acevm/instructions.h>
 
-#include <acevm/ace_string.h>
+#include <common/utf8.h>
 
 #include <chrono>
+#include <string>
+#include <algorithm>
 
-void Test()
+/** check if the option is set */
+inline bool has_option(char **begin, char **end, const std::string &opt) 
+{
+    return std::find(begin, end, opt) != end;
+}
+
+/** retrieve the value that is found after an option */
+inline char *get_option_value(char **begin, char **end, const std::string &opt)
+{
+    char **it = std::find(begin, end, opt);
+    if (it != end && ++it != end) {
+        return *it;
+    }
+    return nullptr;
+}
+
+int main(int argc, char *argv[])
 {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     start = std::chrono::high_resolution_clock::now();
 
-    const char *filename = "bytecode.bin";
+    if (argc == 1) {
+        ucout << "\tUsage: " << argv[0] << " <file>\n";
 
-    // load bytecode from file
-    std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
-    if (!file.is_open()) {
-        std::cout << "Could not open file " << filename << "\n";
-        return;
+    } else if (argc >= 2) {
+        Utf8String filename(argv[1]);
+
+        // load bytecode from file
+        std::ifstream file(filename.GetData(), std::ios::in | std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            ucout << "Could not open file " << filename << "\n";
+            return 1;
+        }
+
+        size_t bytecode_size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        char *bytecodes = new char[bytecode_size];
+        file.read(bytecodes, bytecode_size);
+        file.close();
+
+        BytecodeStream bytecode_stream(bytecodes, bytecode_size);
+
+        VM vm(&bytecode_stream);
+        vm.Execute();
+
+        delete[] bytecodes;
+
+        end = std::chrono::high_resolution_clock::now();
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(end - start).count();
+        ucout << "Elapsed time: " << elapsed_ms << "s\n";
     }
 
-    size_t bytecode_size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    char *bytecodes = new char[bytecode_size];
-    file.read(bytecodes, bytecode_size);
-    file.close();
-
-    BytecodeStream bytecode_stream(bytecodes, bytecode_size);
-
-    VM vm(&bytecode_stream);
-    vm.Execute();
-    
-    delete[] bytecodes;
-
-    end = std::chrono::high_resolution_clock::now();
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(end - start).count();
-    std::cout << "elapsed time: " << elapsed_ms << "s\n";
-}
-
-int main()
-{
-    Test();
-
-    std::cout << "Press enter to exit...";
-    std::cin.get();
     return 0;
 }
