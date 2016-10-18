@@ -39,19 +39,19 @@ struct StackValue {
     {
         switch (m_type) {
         case INT32:
-            return "Int32";
+            return "int32";
         case INT64:
-            return "Int64";
+            return "int64";
         case FLOAT:
-            return "Float";
+            return "float";
         case DOUBLE:
-            return "Double";
+            return "double";
         case HEAP_POINTER:
-            return "Reference";
+            return "reference";
         case FUNCTION:
-            return "Function";
+            return "function";
         default:
-            return "Undefined";
+            return "undefined";
         }
     }
 };

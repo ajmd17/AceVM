@@ -14,6 +14,4 @@ HeapValue::~HeapValue()
     if (m_holder != nullptr) {
         delete m_holder;
     }
-
-    std::cout << "~HeapValue()\n";
 }

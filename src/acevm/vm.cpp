@@ -42,7 +42,7 @@ void VM::Echo(StackValue &value)
         } else {
             // print address
             char str[256];
-            std::sprintf(str, "pointer<%p>", (void*)value.m_value.ptr);
+            std::sprintf(str, "reference<%p>", (void*)value.m_value.ptr);
             ucout << str;
         }
 
@@ -243,6 +243,17 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case LOAD_NULL:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        StackValue &sv = m_registers[reg];
+        sv.m_type = StackValue::HEAP_POINTER;
+        sv.m_value.ptr = nullptr;
+
+        break;
+    }
     case MOV:
     {
         uint16_t offset;
@@ -380,6 +391,7 @@ void VM::HandleInstruction(uint8_t code)
         StackValue &lhs = m_registers[lhs_reg];
         StackValue &rhs = m_registers[rhs_reg];
 
+        // COMPARE INTEGERS
         if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
@@ -394,6 +406,7 @@ void VM::HandleInstruction(uint8_t code)
                 // set NONE flag
                 m_registers.m_flags = NONE;
             }
+        // COMPARE FLOATING POINT
         } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
             double left = GetValueDouble(lhs);
             double right = GetValueDouble(rhs);
@@ -408,30 +421,72 @@ void VM::HandleInstruction(uint8_t code)
                 // set NONE flag
                 m_registers.m_flags = NONE;
             }
-        } else if (lhs.m_type == StackValue::HEAP_POINTER && 
-            rhs.m_type == StackValue::HEAP_POINTER) {
-
-            // compare memory addresses
-            if (lhs.m_value.ptr > rhs.m_value.ptr) {
-                // set GREATER flag
-                m_registers.m_flags = GREATER;
-            } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
-                // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+        // COMPARE REFERENCES
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            if (rhs.m_type == StackValue::HEAP_POINTER) {
+                // compare memory addresses
+                if (lhs.m_value.ptr > rhs.m_value.ptr) {
+                    // set GREATER flag
+                    m_registers.m_flags = GREATER;
+                } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
+                    // set EQUAL flag
+                    m_registers.m_flags = EQUAL;
+                } else {
+                    // set NONE flag
+                    m_registers.m_flags = NONE;
+                }
             } else {
                 // set NONE flag
                 m_registers.m_flags = NONE;
             }
-        } else if (lhs.m_type == StackValue::FUNCTION && 
-            rhs.m_type == StackValue::FUNCTION) {
-
-            // compare function address
-            if (lhs.m_value.func.address > rhs.m_value.func.address) {
-                // set GREATER flag
-                m_registers.m_flags = GREATER;
-            } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
-                // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+        } else if (rhs.m_type == StackValue::HEAP_POINTER) {
+            if (lhs.m_type == StackValue::HEAP_POINTER) {
+                // compare memory addresses
+                if (lhs.m_value.ptr > rhs.m_value.ptr) {
+                    // set GREATER flag
+                    m_registers.m_flags = GREATER;
+                } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
+                    // set EQUAL flag
+                    m_registers.m_flags = EQUAL;
+                } else {
+                    // set NONE flag
+                    m_registers.m_flags = NONE;
+                }
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        // COMPARE FUNCTIONS
+        } else if (lhs.m_type == StackValue::FUNCTION) {
+            if (rhs.m_type == StackValue::FUNCTION) {
+                // compare function address
+                if (lhs.m_value.func.address > rhs.m_value.func.address) {
+                    // set GREATER flag
+                    m_registers.m_flags = GREATER;
+                } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
+                    // set EQUAL flag
+                    m_registers.m_flags = EQUAL;
+                } else {
+                    // set NONE flag
+                    m_registers.m_flags = NONE;
+                }
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (rhs.m_type == StackValue::FUNCTION) {
+            if (lhs.m_type == StackValue::FUNCTION) {
+                // compare function address
+                if (lhs.m_value.func.address > rhs.m_value.func.address) {
+                    // set GREATER flag
+                    m_registers.m_flags = GREATER;
+                } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
+                    // set EQUAL flag
+                    m_registers.m_flags = EQUAL;
+                } else {
+                    // set NONE flag
+                    m_registers.m_flags = NONE;
+                }
             } else {
                 // set NONE flag
                 m_registers.m_flags = NONE;
