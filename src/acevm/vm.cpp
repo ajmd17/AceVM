@@ -34,9 +34,14 @@ void VM::Echo(StackValue &value)
     case StackValue::DOUBLE:
         ucout << value.m_value.d;
         break;
+    case StackValue::BOOLEAN:
+        ucout << (value.m_value.b ? "true" : "false");
+        break;
     case StackValue::HEAP_POINTER:
-        if (value.m_value.ptr != nullptr && 
-            value.m_value.ptr->TypeCompatible<Utf8String>()) {
+        if (value.m_value.ptr == nullptr) {
+            // special case for null references
+            ucout << "null";
+        } else if (value.m_value.ptr->TypeCompatible<Utf8String>()) {
             // print string value
             ucout << value.m_value.ptr->Get<Utf8String>();
         } else {
@@ -47,7 +52,7 @@ void VM::Echo(StackValue &value)
         }
 
         break;
-    case StackValue::FUNCTION: 
+    case StackValue::FUNCTION:
     {
         char str[256];
         std::sprintf(str, "function<%du, %du>",
@@ -70,7 +75,7 @@ void VM::Echo(StackValue &value)
 void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 {
     const size_t num_registers = sizeof(m_registers.m_reg) / sizeof(m_registers.m_reg[0]);
-    
+
     if (num_args > num_registers) {
         // more arguments than there are registers
         char buffer[256];
@@ -79,7 +84,7 @@ void VM::InvokeFunction(StackValue &value, uint8_t num_args)
         ThrowException(Exception(buffer));
     } else if (value.m_type != StackValue::FUNCTION) {
         char buffer[256];
-        std::sprintf(buffer, "cannot invoke '%s' as a function",
+        std::sprintf(buffer, "cannot invoke type '%s' as a function",
             value.GetTypeString());
 
         ThrowException(Exception(buffer));
@@ -237,7 +242,7 @@ void VM::HandleInstruction(uint8_t code)
         uint16_t index;
         m_bs->Read(&index);
 
-        // read value from static memory 
+        // read value from static memory
         // at the index into the the register
         m_registers[reg] = m_static_memory[index];
 
@@ -251,6 +256,28 @@ void VM::HandleInstruction(uint8_t code)
         StackValue &sv = m_registers[reg];
         sv.m_type = StackValue::HEAP_POINTER;
         sv.m_value.ptr = nullptr;
+
+        break;
+    }
+    case LOAD_TRUE:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        StackValue &sv = m_registers[reg];
+        sv.m_type = StackValue::BOOLEAN;
+        sv.m_value.b = true;
+
+        break;
+    }
+    case LOAD_FALSE:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        StackValue &sv = m_registers[reg];
+        sv.m_type = StackValue::BOOLEAN;
+        sv.m_value.b = false;
 
         break;
     }
@@ -392,7 +419,9 @@ void VM::HandleInstruction(uint8_t code)
         StackValue &rhs = m_registers[rhs_reg];
 
         // COMPARE INTEGERS
-        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+        if ((IS_VALUE_INTEGRAL(lhs) || lhs.m_type == StackValue::BOOLEAN) &&
+            (IS_VALUE_INTEGRAL(rhs) || rhs.m_type == StackValue::BOOLEAN)) {
+
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
 

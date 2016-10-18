@@ -79,10 +79,12 @@ private:
             return (int64_t)stack_value.m_value.f;
         case StackValue::DOUBLE:
             return (int64_t)stack_value.m_value.d;
+        case StackValue::BOOLEAN:
+            return (int64_t)stack_value.m_value.b;
         default:
         {
             char buffer[256];
-            std::sprintf(buffer, "no conversion from '%s' to 'Int64'", 
+            std::sprintf(buffer, "no conversion from '%s' to 'Int64'",
                 stack_value.GetTypeString());
             ThrowException(Exception(buffer));
 
@@ -102,6 +104,8 @@ private:
             return (double)stack_value.m_value.f;
         case StackValue::DOUBLE:
             return stack_value.m_value.d;
+        case StackValue::BOOLEAN:
+            return (double)stack_value.m_value.b;
         default:
         {
             char buffer[256];

@@ -17,6 +17,7 @@ struct StackValue {
         INT64,
         FLOAT,
         DOUBLE,
+        BOOLEAN,
         HEAP_POINTER,
         FUNCTION,
         ADDRESS,
@@ -27,6 +28,7 @@ struct StackValue {
         int64_t i64;
         float f;
         double d;
+        bool b;
         HeapValue *ptr;
         Function func;
         uint32_t addr;
@@ -46,6 +48,8 @@ struct StackValue {
             return "float";
         case DOUBLE:
             return "double";
+        case BOOLEAN:
+            return "boolean";
         case HEAP_POINTER:
             return "reference";
         case FUNCTION:
