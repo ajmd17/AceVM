@@ -501,6 +501,55 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case CMPZ:
+    {
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
+
+        // load values from registers
+        StackValue &lhs = m_registers[lhs_reg];
+
+        if (IS_VALUE_INTEGRAL(lhs)) {
+            int64_t value = GetValueInt64(lhs);
+
+            if (value == 0) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (IS_VALUE_FLOATING_POINT(lhs)) {
+            double value = GetValueDouble(lhs);
+
+            if (value == 0.0) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            if (lhs.m_value.ptr == nullptr) {
+                // set EQUAL flag
+                m_registers.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_registers.m_flags = NONE;
+            }
+        } else if (lhs.m_type == StackValue::FUNCTION) {
+            // set NONE flag
+            m_registers.m_flags = NONE;
+        } else {
+            char buffer[256];
+            std::sprintf(buffer, "cannot determine if type '%s' is nonzero",
+                lhs.GetTypeString());
+
+            ThrowException(Exception(buffer));
+        }
+
+        break;
+    }
     case ADD:
     {
         uint8_t lhs_reg;
