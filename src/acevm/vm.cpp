@@ -192,7 +192,7 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
-    case LOAD_F:
+    case LOAD_F32:
     {
         uint8_t reg;
         m_bs->Read(&reg);
@@ -206,7 +206,7 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
-    case LOAD_D:
+    case LOAD_F64:
     {
         uint8_t reg;
         m_bs->Read(&reg);
