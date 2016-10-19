@@ -12,6 +12,14 @@
 #include <cstdint>
 #include <cstdio>
 
+#define THROW_COMPARISON_ERROR(lhs, rhs) \
+    do { \
+        char buffer[256]; \
+        std::sprintf(buffer, "cannot compare '%s' with '%s'", \
+            lhs.GetTypeString(), rhs.GetTypeString()); \
+        ThrowException(Exception(buffer)); \
+    } while (0)
+
 #define IS_VALUE_INTEGER(stack_value) \
     ((stack_value).m_type == StackValue::INT32 || \
     (stack_value).m_type == StackValue::INT64)
@@ -22,6 +30,23 @@
 
 #define MATCH_TYPES(lhs, rhs) \
     ((lhs).m_type < (rhs).m_type) ? (rhs).m_type : (lhs).m_type
+
+#define COMPARE_FLOATING_POINT(lhs, rhs) \
+    do { \
+        if (IS_VALUE_FLOATING_POINT(rhs) || IS_VALUE_INTEGER(rhs)) { \
+            double left = GetValueDouble(lhs); \
+            double right = GetValueDouble(rhs); \
+            if (left > right) { \
+                m_exec_thread.m_regs.m_flags = GREATER; \
+            } else if (left == right) { \
+                m_exec_thread.m_regs.m_flags = EQUAL; \
+            } else { \
+                m_exec_thread.m_regs.m_flags = NONE; \
+            } \
+        } else { \
+            THROW_COMPARISON_ERROR(lhs, rhs); \
+        } \
+    } while (0) \
 
 #define COMPARE_REFERENCES(lhs, rhs) \
     do { \
@@ -34,7 +59,7 @@
                 m_exec_thread.m_regs.m_flags = NONE; \
             } \
         } else { \
-            m_exec_thread.m_regs.m_flags = NONE; \
+            THROW_COMPARISON_ERROR(lhs, rhs); \
         } \
     } while(0)
 
@@ -49,7 +74,7 @@
                 m_exec_thread.m_regs.m_flags = NONE; \
             } \
         } else { \
-            m_exec_thread.m_regs.m_flags = NONE; \
+            THROW_COMPARISON_ERROR(lhs, rhs); \
         } \
     } while(0)
 

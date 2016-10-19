@@ -504,26 +504,12 @@ void VM::HandleInstruction(uint8_t code)
         } else if (rhs.m_type == StackValue::FUNCTION) {
             COMPARE_FUNCTIONS(rhs, lhs);
         // COMPARE FLOATING POINT
-        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
-            double left = GetValueDouble(lhs);
-            double right = GetValueDouble(rhs);
-
-            if (left > right) {
-                // set GREATER flag
-                m_exec_thread.m_regs.m_flags = GREATER;
-            } else if (left == right) {
-                // set EQUAL flag
-                m_exec_thread.m_regs.m_flags = EQUAL;
-            } else {
-                // set NONE flag
-                m_exec_thread.m_regs.m_flags = NONE;
-            }
-        }else {
-            char buffer[256];
-            std::sprintf(buffer, "cannot compare '%s' with '%s'",
-                lhs.GetTypeString(), rhs.GetTypeString());
-
-            ThrowException(Exception(buffer));
+        } else if (IS_VALUE_FLOATING_POINT(lhs)) {
+            COMPARE_FLOATING_POINT(lhs, rhs);
+        } else if (IS_VALUE_FLOATING_POINT(rhs)) {
+            COMPARE_FLOATING_POINT(rhs, lhs);
+        } else {
+            THROW_COMPARISON_ERROR(lhs, rhs);
         }
 
         break;
