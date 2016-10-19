@@ -466,11 +466,24 @@ void VM::HandleInstruction(uint8_t code)
         StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
 
         // COMPARE INTEGERS
-        if ((IS_VALUE_INTEGER(lhs) || lhs.m_type == StackValue::BOOLEAN) &&
-            (IS_VALUE_INTEGER(rhs) || rhs.m_type == StackValue::BOOLEAN)) {
-
+        if (IS_VALUE_INTEGER(lhs) && IS_VALUE_INTEGER(rhs)) {
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
+
+            if (left > right) {
+                // set GREATER flag
+                m_exec_thread.m_regs.m_flags = GREATER;
+            } else if (left == right) {
+                // set EQUAL flag
+                m_exec_thread.m_regs.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_exec_thread.m_regs.m_flags = NONE;
+            }
+        // COMPARE BOOLEANS
+        } else if (lhs.m_type == StackValue::BOOLEAN && rhs.m_type == StackValue::BOOLEAN) {
+            bool left = lhs.m_value.b;
+            bool right = rhs.m_value.b;
 
             if (left > right) {
                 // set GREATER flag
@@ -505,7 +518,7 @@ void VM::HandleInstruction(uint8_t code)
                 // set NONE flag
                 m_exec_thread.m_regs.m_flags = NONE;
             }
-        } else {
+        }else {
             char buffer[256];
             std::sprintf(buffer, "cannot compare '%s' with '%s'",
                 lhs.GetTypeString(), rhs.GetTypeString());
@@ -537,6 +550,14 @@ void VM::HandleInstruction(uint8_t code)
             double value = GetValueDouble(lhs);
 
             if (value == 0.0) {
+                // set EQUAL flag
+                m_exec_thread.m_regs.m_flags = EQUAL;
+            } else {
+                // set NONE flag
+                m_exec_thread.m_regs.m_flags = NONE;
+            }
+        } else if (lhs.m_type == StackValue::BOOLEAN) {
+            if (!lhs.m_value.b) {
                 // set EQUAL flag
                 m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
