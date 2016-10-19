@@ -1,4 +1,4 @@
-#include <acevm/heap_memory.h>
+#include <acevm/heap_memory.hpp>
 
 std::ostream &operator<<(std::ostream &os, const Heap &heap)
 {

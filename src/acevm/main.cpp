@@ -1,18 +1,18 @@
 #include <iostream>
 #include <fstream>
 
-#include <acevm/vm.h>
-#include <acevm/bytecode_stream.h>
-#include <acevm/instructions.h>
+#include <acevm/vm.hpp>
+#include <acevm/bytecode_stream.hpp>
+#include <acevm/instructions.hpp>
 
-#include <common/utf8.h>
+#include <common/utf8.hpp>
 
 #include <chrono>
 #include <string>
 #include <algorithm>
 
 /** check if the option is set */
-inline bool has_option(char **begin, char **end, const std::string &opt) 
+inline bool has_option(char **begin, char **end, const std::string &opt)
 {
     return std::find(begin, end, opt) != end;
 }

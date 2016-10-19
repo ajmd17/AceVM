@@ -1,5 +1,5 @@
-#ifndef BYTECODE_STREAM_H
-#define BYTECODE_STREAM_H
+#ifndef BYTECODE_STREAM_HPP
+#define BYTECODE_STREAM_HPP
 
 #include <iostream>
 #include <cassert>

@@ -1,5 +1,5 @@
-#ifndef HEAP_VALUE_H
-#define HEAP_VALUE_H
+#ifndef HEAP_VALUE_HPP
+#define HEAP_VALUE_HPP
 
 #include <type_traits>
 #include <typeinfo>
@@ -15,12 +15,12 @@ public:
     HeapValue(const HeapValue &other) = delete;
     ~HeapValue();
 
-    inline bool operator==(const HeapValue &other) const 
-    { 
+    inline bool operator==(const HeapValue &other) const
+    {
         if (!((intptr_t)m_holder ^ (intptr_t)other.m_holder) && m_holder != nullptr) {
             return (*m_holder) == (*other.m_holder);
         }
-        
+
         return false;
     }
 
@@ -71,7 +71,7 @@ public:
         if (!TypeCompatible<T>()) {
             throw std::bad_cast();
         }
-        
+
         return *reinterpret_cast<const U*>(m_ptr);
     }
 
@@ -104,7 +104,7 @@ private:
         virtual bool operator==(const BaseHolder &other) const
         {
             const auto *other_casted = dynamic_cast<const DerivedHolder<T>*>(&other);
-            return (other_casted != nullptr && 
+            return (other_casted != nullptr &&
                 other_casted->m_value == m_value);
         }
 

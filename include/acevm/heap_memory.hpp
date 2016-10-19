@@ -1,7 +1,7 @@
-#ifndef HEAP_MEMORY_H
-#define HEAP_MEMORY_H
+#ifndef HEAP_MEMORY_HPP
+#define HEAP_MEMORY_HPP
 
-#include <acevm/heap_value.h>
+#include <acevm/heap_value.hpp>
 
 #include <ostream>
 

@@ -1,7 +1,7 @@
-#ifndef STACK_MEMORY_H
-#define STACK_MEMORY_H
+#ifndef STACK_MEMORY_HPP
+#define STACK_MEMORY_HPP
 
-#include <acevm/stack_value.h>
+#include <acevm/stack_value.hpp>
 
 #include <array>
 #include <cassert>

@@ -1,4 +1,4 @@
-#include <acevm/stack_value.h>
+#include <acevm/stack_value.hpp>
 
 StackValue::StackValue()
     : m_type(HEAP_POINTER)

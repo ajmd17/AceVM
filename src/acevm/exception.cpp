@@ -1,4 +1,4 @@
-#include <acevm/exception.h>
+#include <acevm/exception.hpp>
 
 Exception::Exception(const std::string &str)
     : m_str(str)

@@ -1,5 +1,5 @@
-#ifndef UTF8_H
-#define UTF8_H
+#ifndef UTF8_HPP
+#define UTF8_HPP
 
 #include <iostream>
 #include <fstream>
@@ -44,9 +44,9 @@ inline char *utf32_get_bytes(u32char &ch)
 
 inline bool utf32_isspace(u32char ch)
 {
-    return ch == (u32char)' '  || 
-           ch == (u32char)'\n' || 
-           ch == (u32char)'\t' || 
+    return ch == (u32char)' '  ||
+           ch == (u32char)'\n' ||
+           ch == (u32char)'\t' ||
            ch == (u32char)'\r';
 }
 

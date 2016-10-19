@@ -1,7 +1,7 @@
-#ifndef STACK_VALUE_H
-#define STACK_VALUE_H
+#ifndef STACK_VALUE_HPP
+#define STACK_VALUE_HPP
 
-#include <acevm/heap_value.h>
+#include <acevm/heap_value.hpp>
 
 #include <stdexcept>
 #include <cstdint>

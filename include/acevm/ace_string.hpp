@@ -1,5 +1,5 @@
-#ifndef ACE_STRING_H
-#define ACE_STRING_H
+#ifndef ACE_STRING_HPP
+#define ACE_STRING_HPP
 
 #include <cstring>
 #include <cassert>

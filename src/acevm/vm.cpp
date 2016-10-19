@@ -1,9 +1,9 @@
-#include <acevm/vm.h>
-#include <acevm/instructions.h>
-#include <acevm/stack_value.h>
-#include <acevm/heap_value.h>
+#include <acevm/vm.hpp>
+#include <acevm/instructions.hpp>
+#include <acevm/stack_value.hpp>
+#include <acevm/heap_value.hpp>
 
-#include <common/utf8.h>
+#include <common/utf8.hpp>
 
 #include <iostream>
 #include <cstdio>
@@ -12,7 +12,6 @@
 VM::VM(BytecodeStream *bs)
     : m_bs(bs)
 {
-    m_registers.m_flags = NONE;
 }
 
 VM::~VM()
@@ -74,7 +73,8 @@ void VM::Echo(StackValue &value)
 
 void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 {
-    const size_t num_registers = sizeof(m_registers.m_reg) / sizeof(m_registers.m_reg[0]);
+    const size_t num_registers =
+        sizeof(m_exec_thread.m_regs.m_reg) / sizeof(m_exec_thread.m_regs.m_reg[0]);
 
     if (num_args > num_registers) {
         // more arguments than there are registers
@@ -117,9 +117,15 @@ void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 
 void VM::ThrowException(const Exception &exception)
 {
-    std::printf("runtime error: %s\n", exception.ToString().c_str());
-    // seek to end of bytecode stream
-    m_bs->Seek(m_bs->Size());
+    if (m_exec_thread.m_exception_state.m_try_counter > 0) {
+        // exception can be handled
+        m_exec_thread.m_exception_state.m_exception_occured = true;
+    } else {
+        // unhandled exception
+        std::printf("unhandled exception: %s\n", exception.ToString().c_str());
+        // seek to end of bytecode stream
+        m_bs->Seek(m_bs->Size());
+    }
 }
 
 void VM::HandleInstruction(uint8_t code)
@@ -134,7 +140,7 @@ void VM::HandleInstruction(uint8_t code)
         // read string based on length
         char *str = new char[len + 1];
         m_bs->Read(str, len);
-        str[len] = 0;
+        str[len] = '\0';
 
         // the value will be freed on
         // the destructor call of m_static_memory
@@ -170,7 +176,7 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // get register value given
-        StackValue &value = m_registers[reg];
+        StackValue &value = m_exec_thread.m_regs[reg];
         value.m_type = StackValue::INT32;
 
         // read 32-bit integer into register value
@@ -184,7 +190,7 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // get register value given
-        StackValue &value = m_registers[reg];
+        StackValue &value = m_exec_thread.m_regs[reg];
         value.m_type = StackValue::INT64;
 
         // read 64-bit integer into register value
@@ -198,7 +204,7 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // get register value given
-        StackValue &value = m_registers[reg];
+        StackValue &value = m_exec_thread.m_regs[reg];
         value.m_type = StackValue::FLOAT;
 
         // read float into register value
@@ -212,7 +218,7 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // get register value given
-        StackValue &value = m_registers[reg];
+        StackValue &value = m_exec_thread.m_regs[reg];
         value.m_type = StackValue::DOUBLE;
 
         // read double into register value
@@ -230,7 +236,8 @@ void VM::HandleInstruction(uint8_t code)
 
         // read value from stack at (sp - offset)
         // into the the register
-        m_registers[reg] = m_stack[m_stack.GetStackPointer() - offset];
+        m_exec_thread.m_regs[reg] =
+            m_exec_thread.m_stack[m_exec_thread.m_stack.GetStackPointer() - offset];
 
         break;
     }
@@ -244,7 +251,7 @@ void VM::HandleInstruction(uint8_t code)
 
         // read value from static memory
         // at the index into the the register
-        m_registers[reg] = m_static_memory[index];
+        m_exec_thread.m_regs[reg] = m_static_memory[index];
 
         break;
     }
@@ -253,7 +260,7 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        StackValue &sv = m_registers[reg];
+        StackValue &sv = m_exec_thread.m_regs[reg];
         sv.m_type = StackValue::HEAP_POINTER;
         sv.m_value.ptr = nullptr;
 
@@ -264,7 +271,7 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        StackValue &sv = m_registers[reg];
+        StackValue &sv = m_exec_thread.m_regs[reg];
         sv.m_type = StackValue::BOOLEAN;
         sv.m_value.b = true;
 
@@ -275,7 +282,7 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        StackValue &sv = m_registers[reg];
+        StackValue &sv = m_exec_thread.m_regs[reg];
         sv.m_type = StackValue::BOOLEAN;
         sv.m_value.b = false;
 
@@ -290,7 +297,8 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // copy value from register to stack value at (sp - offset)
-        m_stack[m_stack.GetStackPointer() - offset] = m_registers[reg];
+        m_exec_thread.m_stack[m_exec_thread.m_stack.GetStackPointer() - offset] =
+            m_exec_thread.m_regs[reg];
 
         break;
     }
@@ -300,13 +308,13 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // push a copy of the register value to the top of the stack
-        m_stack.Push(m_registers[reg]);
+        m_exec_thread.m_stack.Push(m_exec_thread.m_regs[reg]);
 
         break;
     }
     case POP:
     {
-        m_stack.Pop();
+        m_exec_thread.m_stack.Pop();
 
         break;
     }
@@ -316,7 +324,7 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&reg);
 
         // print out the value of the item in the register
-        Echo(m_registers[reg]);
+        Echo(m_exec_thread.m_regs[reg]);
 
         break;
     }
@@ -331,7 +339,7 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        const StackValue &addr = m_registers[reg];
+        const StackValue &addr = m_exec_thread.m_regs[reg];
         assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
         m_bs->Seek(addr.m_value.addr);
@@ -343,8 +351,8 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        if (m_registers.m_flags == EQUAL) {
-            const StackValue &addr = m_registers[reg];
+        if (m_exec_thread.m_regs.m_flags == EQUAL) {
+            const StackValue &addr = m_exec_thread.m_regs[reg];
             assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
             m_bs->Seek(addr.m_value.addr);
@@ -357,8 +365,8 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        if (m_registers.m_flags != EQUAL) {
-            const StackValue &addr = m_registers[reg];
+        if (m_exec_thread.m_regs.m_flags != EQUAL) {
+            const StackValue &addr = m_exec_thread.m_regs[reg];
             assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
             m_bs->Seek(addr.m_value.addr);
@@ -371,8 +379,8 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        if (m_registers.m_flags == GREATER) {
-            const StackValue &addr = m_registers[reg];
+        if (m_exec_thread.m_regs.m_flags == GREATER) {
+            const StackValue &addr = m_exec_thread.m_regs[reg];
             assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
             m_bs->Seek(addr.m_value.addr);
@@ -385,8 +393,8 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t reg;
         m_bs->Read(&reg);
 
-        if (m_registers.m_flags == GREATER || m_registers.m_flags == EQUAL) {
-            const StackValue &addr = m_registers[reg];
+        if (m_exec_thread.m_regs.m_flags == GREATER || m_exec_thread.m_regs.m_flags == EQUAL) {
+            const StackValue &addr = m_exec_thread.m_regs[reg];
             assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
             m_bs->Seek(addr.m_value.addr);
@@ -402,8 +410,47 @@ void VM::HandleInstruction(uint8_t code)
         uint8_t num_args;
         m_bs->Read(&num_args);
 
-        InvokeFunction(m_registers[reg], num_args);
+        InvokeFunction(m_exec_thread.m_regs[reg], num_args);
 
+        break;
+    }
+    case BEGIN_TRY:
+    {
+        // register that holds address of catch block
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        // copy the value of the address for the catch-block
+        StackValue addr(m_exec_thread.m_regs[reg]);
+        assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
+
+        int try_counter_before = m_exec_thread.m_exception_state.m_try_counter++;
+
+        while (HasNextInstruction() &&
+            m_exec_thread.m_exception_state.m_try_counter != try_counter_before) {
+
+            // handle instructions until we reach the end of the block
+            uint8_t code;
+            m_bs->Read(&code, 1);
+
+            HandleInstruction(code);
+
+            if (m_exec_thread.m_exception_state.m_exception_occured) {
+                // decrement the try counter
+                m_exec_thread.m_exception_state.m_try_counter--;
+                // jump to the catch block
+                m_bs->Seek(addr.m_value.addr);
+                // unset the exception flag
+                m_exec_thread.m_exception_state.m_exception_occured = false;
+                break;
+            }
+        }
+
+        break;
+    }
+    case END_TRY:
+    {
+        m_exec_thread.m_exception_state.m_try_counter--;
         break;
     }
     case CMP:
@@ -415,26 +462,34 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&rhs_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[lhs_reg];
-        StackValue &rhs = m_registers[rhs_reg];
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
+        StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
 
         // COMPARE INTEGERS
-        if ((IS_VALUE_INTEGRAL(lhs) || lhs.m_type == StackValue::BOOLEAN) &&
-            (IS_VALUE_INTEGRAL(rhs) || rhs.m_type == StackValue::BOOLEAN)) {
+        if ((IS_VALUE_INTEGER(lhs) || lhs.m_type == StackValue::BOOLEAN) &&
+            (IS_VALUE_INTEGER(rhs) || rhs.m_type == StackValue::BOOLEAN)) {
 
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
 
             if (left > right) {
                 // set GREATER flag
-                m_registers.m_flags = GREATER;
+                m_exec_thread.m_regs.m_flags = GREATER;
             } else if (left == right) {
                 // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+                m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
                 // set NONE flag
-                m_registers.m_flags = NONE;
+                m_exec_thread.m_regs.m_flags = NONE;
             }
+        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
+            COMPARE_REFERENCES(lhs, rhs);
+        } else if (rhs.m_type == StackValue::HEAP_POINTER) {
+            COMPARE_REFERENCES(rhs, lhs);
+        } else if (lhs.m_type == StackValue::FUNCTION) {
+            COMPARE_FUNCTIONS(lhs, rhs);
+        } else if (rhs.m_type == StackValue::FUNCTION) {
+            COMPARE_FUNCTIONS(rhs, lhs);
         // COMPARE FLOATING POINT
         } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
             double left = GetValueDouble(lhs);
@@ -442,83 +497,13 @@ void VM::HandleInstruction(uint8_t code)
 
             if (left > right) {
                 // set GREATER flag
-                m_registers.m_flags = GREATER;
+                m_exec_thread.m_regs.m_flags = GREATER;
             } else if (left == right) {
                 // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+                m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
                 // set NONE flag
-                m_registers.m_flags = NONE;
-            }
-        // COMPARE REFERENCES
-        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
-            if (rhs.m_type == StackValue::HEAP_POINTER) {
-                // compare memory addresses
-                if (lhs.m_value.ptr > rhs.m_value.ptr) {
-                    // set GREATER flag
-                    m_registers.m_flags = GREATER;
-                } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
-                    // set EQUAL flag
-                    m_registers.m_flags = EQUAL;
-                } else {
-                    // set NONE flag
-                    m_registers.m_flags = NONE;
-                }
-            } else {
-                // set NONE flag
-                m_registers.m_flags = NONE;
-            }
-        } else if (rhs.m_type == StackValue::HEAP_POINTER) {
-            if (lhs.m_type == StackValue::HEAP_POINTER) {
-                // compare memory addresses
-                if (lhs.m_value.ptr > rhs.m_value.ptr) {
-                    // set GREATER flag
-                    m_registers.m_flags = GREATER;
-                } else if (lhs.m_value.ptr == rhs.m_value.ptr) {
-                    // set EQUAL flag
-                    m_registers.m_flags = EQUAL;
-                } else {
-                    // set NONE flag
-                    m_registers.m_flags = NONE;
-                }
-            } else {
-                // set NONE flag
-                m_registers.m_flags = NONE;
-            }
-        // COMPARE FUNCTIONS
-        } else if (lhs.m_type == StackValue::FUNCTION) {
-            if (rhs.m_type == StackValue::FUNCTION) {
-                // compare function address
-                if (lhs.m_value.func.address > rhs.m_value.func.address) {
-                    // set GREATER flag
-                    m_registers.m_flags = GREATER;
-                } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
-                    // set EQUAL flag
-                    m_registers.m_flags = EQUAL;
-                } else {
-                    // set NONE flag
-                    m_registers.m_flags = NONE;
-                }
-            } else {
-                // set NONE flag
-                m_registers.m_flags = NONE;
-            }
-        } else if (rhs.m_type == StackValue::FUNCTION) {
-            if (lhs.m_type == StackValue::FUNCTION) {
-                // compare function address
-                if (lhs.m_value.func.address > rhs.m_value.func.address) {
-                    // set GREATER flag
-                    m_registers.m_flags = GREATER;
-                } else if (lhs.m_value.func.address == rhs.m_value.func.address) {
-                    // set EQUAL flag
-                    m_registers.m_flags = EQUAL;
-                } else {
-                    // set NONE flag
-                    m_registers.m_flags = NONE;
-                }
-            } else {
-                // set NONE flag
-                m_registers.m_flags = NONE;
+                m_exec_thread.m_regs.m_flags = NONE;
             }
         } else {
             char buffer[256];
@@ -536,39 +521,39 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&lhs_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[lhs_reg];
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
 
-        if (IS_VALUE_INTEGRAL(lhs)) {
+        if (IS_VALUE_INTEGER(lhs)) {
             int64_t value = GetValueInt64(lhs);
 
             if (value == 0) {
                 // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+                m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
                 // set NONE flag
-                m_registers.m_flags = NONE;
+                m_exec_thread.m_regs.m_flags = NONE;
             }
         } else if (IS_VALUE_FLOATING_POINT(lhs)) {
             double value = GetValueDouble(lhs);
 
             if (value == 0.0) {
                 // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+                m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
                 // set NONE flag
-                m_registers.m_flags = NONE;
+                m_exec_thread.m_regs.m_flags = NONE;
             }
         } else if (lhs.m_type == StackValue::HEAP_POINTER) {
             if (lhs.m_value.ptr == nullptr) {
                 // set EQUAL flag
-                m_registers.m_flags = EQUAL;
+                m_exec_thread.m_regs.m_flags = EQUAL;
             } else {
                 // set NONE flag
-                m_registers.m_flags = NONE;
+                m_exec_thread.m_regs.m_flags = NONE;
             }
         } else if (lhs.m_type == StackValue::FUNCTION) {
             // set NONE flag
-            m_registers.m_flags = NONE;
+            m_exec_thread.m_regs.m_flags = NONE;
         } else {
             char buffer[256];
             std::sprintf(buffer, "cannot determine if type '%s' is nonzero",
@@ -591,13 +576,15 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&dst_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[lhs_reg];
-        StackValue &rhs = m_registers[rhs_reg];
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
+        StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
 
         StackValue result;
         result.m_type = MATCH_TYPES(lhs, rhs);
 
-        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+        if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_ADD__' function and call it
+        } else if (IS_VALUE_INTEGER(lhs) && IS_VALUE_INTEGER(rhs)) {
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
             int64_t result_value = left + right;
@@ -617,8 +604,6 @@ void VM::HandleInstruction(uint8_t code)
             } else {
                 result.m_value.d = result_value;
             }
-        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
-            // TODO: Check for '__OPR_ADD__' function and call it
         } else {
             char buffer[256];
             std::sprintf(buffer, "cannot add types '%s' and '%s'",
@@ -628,7 +613,7 @@ void VM::HandleInstruction(uint8_t code)
         }
 
         // set the desination register to be the result
-        m_registers[dst_reg] = result;
+        m_exec_thread.m_regs[dst_reg] = result;
 
         break;
     }
@@ -644,13 +629,15 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&dst_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[lhs_reg];
-        StackValue &rhs = m_registers[rhs_reg];
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
+        StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
 
         StackValue result;
         result.m_type = MATCH_TYPES(lhs, rhs);
 
-        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+        if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_SUB__' function and call it
+        } else if (IS_VALUE_INTEGER(lhs) && IS_VALUE_INTEGER(rhs)) {
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
             int64_t result_value = left - right;
@@ -670,8 +657,6 @@ void VM::HandleInstruction(uint8_t code)
             } else {
                 result.m_value.d = result_value;
             }
-        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
-            // TODO: Check for '__OPR_SUB__' function and call it
         } else {
             char buffer[256];
             std::sprintf(buffer, "cannot subtract types '%s' and '%s'",
@@ -681,7 +666,7 @@ void VM::HandleInstruction(uint8_t code)
         }
 
         // set the desination register to be the result
-        m_registers[dst_reg] = result;
+        m_exec_thread.m_regs[dst_reg] = result;
 
         break;
     }
@@ -697,13 +682,15 @@ void VM::HandleInstruction(uint8_t code)
         m_bs->Read(&dst_reg);
 
         // load values from registers
-        StackValue &lhs = m_registers[lhs_reg];
-        StackValue &rhs = m_registers[rhs_reg];
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
+        StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
 
         StackValue result;
         result.m_type = MATCH_TYPES(lhs, rhs);
 
-        if (IS_VALUE_INTEGRAL(lhs) && IS_VALUE_INTEGRAL(rhs)) {
+        if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_MUL__' function and call it
+        } else if (IS_VALUE_INTEGER(lhs) && IS_VALUE_INTEGER(rhs)) {
             int64_t left = GetValueInt64(lhs);
             int64_t right = GetValueInt64(rhs);
             int64_t result_value = left * right;
@@ -723,8 +710,6 @@ void VM::HandleInstruction(uint8_t code)
             } else {
                 result.m_value.d = result_value;
             }
-        } else if (lhs.m_type == StackValue::HEAP_POINTER) {
-            // TODO: Check for '__OPR_MUL__' function and call it
         } else {
             char buffer[256];
             std::sprintf(buffer, "cannot multiply types '%s' and '%s'",
@@ -734,7 +719,7 @@ void VM::HandleInstruction(uint8_t code)
         }
 
         // set the desination register to be the result
-        m_registers[dst_reg] = result;
+        m_exec_thread.m_regs[dst_reg] = result;
 
         break;
     }
@@ -749,7 +734,7 @@ void VM::HandleInstruction(uint8_t code)
 
 void VM::Execute()
 {
-    while (m_bs->Position() < m_bs->Size()) {
+    while (HasNextInstruction()) {
         uint8_t code;
         m_bs->Read(&code, 1);
 

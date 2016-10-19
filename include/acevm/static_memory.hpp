@@ -1,7 +1,7 @@
-#ifndef STATIC_MEMORY_H
-#define STATIC_MEMORY_H
+#ifndef STATIC_MEMORY_HPP
+#define STATIC_MEMORY_HPP
 
-#include <acevm/stack_value.h>
+#include <acevm/stack_value.hpp>
 
 #include <cassert>
 

@@ -1,27 +1,57 @@
-#ifndef VM_H
-#define VM_H
+#ifndef VM_HPP
+#define VM_HPP
 
-#include <acevm/bytecode_stream.h>
-#include <acevm/stack_memory.h>
-#include <acevm/static_memory.h>
-#include <acevm/heap_memory.h>
-#include <acevm/exception.h>
+#include <acevm/bytecode_stream.hpp>
+#include <acevm/stack_memory.hpp>
+#include <acevm/static_memory.hpp>
+#include <acevm/heap_memory.hpp>
+#include <acevm/exception.hpp>
 
 #include <array>
 #include <limits>
 #include <cstdint>
 #include <cstdio>
 
-#define IS_VALUE_INTEGRAL(stack_value) \
-        ((stack_value).m_type == StackValue::INT32 || \
-        (stack_value).m_type == StackValue::INT64)
+#define IS_VALUE_INTEGER(stack_value) \
+    ((stack_value).m_type == StackValue::INT32 || \
+    (stack_value).m_type == StackValue::INT64)
 
 #define IS_VALUE_FLOATING_POINT(stack_value) \
-        ((stack_value).m_type == StackValue::FLOAT || \
-        (stack_value).m_type == StackValue::DOUBLE)
+    ((stack_value).m_type == StackValue::FLOAT || \
+    (stack_value).m_type == StackValue::DOUBLE)
 
 #define MATCH_TYPES(lhs, rhs) \
-        ((lhs).m_type < (rhs).m_type) ? (rhs).m_type : (lhs).m_type
+    ((lhs).m_type < (rhs).m_type) ? (rhs).m_type : (lhs).m_type
+
+#define COMPARE_REFERENCES(lhs, rhs) \
+    do { \
+        if (rhs.m_type == StackValue::HEAP_POINTER) { \
+            if (lhs.m_value.ptr > rhs.m_value.ptr) { \
+                m_exec_thread.m_regs.m_flags = GREATER; \
+            } else if (lhs.m_value.ptr == rhs.m_value.ptr) { \
+                m_exec_thread.m_regs.m_flags = EQUAL; \
+            } else { \
+                m_exec_thread.m_regs.m_flags = NONE; \
+            } \
+        } else { \
+            m_exec_thread.m_regs.m_flags = NONE; \
+        } \
+    } while(0)
+
+#define COMPARE_FUNCTIONS(lhs, rhs) \
+    do { \
+        if (rhs.m_type == StackValue::FUNCTION) { \
+            if (lhs.m_value.func.address > rhs.m_value.func.address) { \
+                m_exec_thread.m_regs.m_flags = GREATER; \
+            } else if (lhs.m_value.func.address == rhs.m_value.func.address) { \
+                m_exec_thread.m_regs.m_flags = EQUAL; \
+            } else { \
+                m_exec_thread.m_regs.m_flags = NONE; \
+            } \
+        } else { \
+            m_exec_thread.m_regs.m_flags = NONE; \
+        } \
+    } while(0)
 
 enum CompareFlags : int32_t {
     NONE = 0x00,
@@ -35,12 +65,28 @@ enum CompareFlags : int32_t {
 
 struct Registers {
     StackValue m_reg[8];
-    int32_t m_flags;
+    int32_t m_flags = 0;
 
     inline StackValue &operator[](uint8_t index)
     {
         return m_reg[index];
     }
+};
+
+struct ExceptionState {
+    // incremented each time BEGIN_TRY is encountered,
+    // decremented each time END_TRY is encountered
+    int m_try_counter = 0;
+
+    // set to true when an exception occurs,
+    // set to false when handled in BEGIN_TRY
+    bool m_exception_occured = false;
+};
+
+struct ExecutionThread {
+    Stack m_stack;
+    ExceptionState m_exception_state;
+    Registers m_regs;
 };
 
 class VM {
@@ -49,9 +95,8 @@ public:
     VM(const VM &other) = delete;
     ~VM();
 
-    inline Stack &GetStack() { return m_stack; }
     inline Heap &GetHeap() { return m_heap; }
-    inline Registers &GetRegisters() { return m_registers; }
+    inline ExecutionThread &GetExecutionThread() { return m_exec_thread; }
 
     void Echo(StackValue &value);
     void InvokeFunction(StackValue &value, uint8_t num_args);
@@ -59,14 +104,15 @@ public:
     void Execute();
 
 private:
-    Stack m_stack;
     StaticMemory m_static_memory;
     Heap m_heap;
-    Registers m_registers;
+    ExecutionThread m_exec_thread;
 
     BytecodeStream *m_bs;
 
     void ThrowException(const Exception &exception);
+
+    inline bool HasNextInstruction() const { return m_bs->Position() < m_bs->Size(); }
 
     inline int64_t GetValueInt64(const StackValue &stack_value)
     {
