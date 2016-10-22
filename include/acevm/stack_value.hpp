@@ -7,8 +7,8 @@
 #include <cstdint>
 
 struct Function {
-    uint32_t address;
-    uint8_t num_args;
+    uint32_t m_addr;
+    uint8_t m_nargs;
 };
 
 struct StackValue {

@@ -55,7 +55,7 @@ void VM::Echo(StackValue &value)
     {
         char str[256];
         std::sprintf(str, "function<%du, %du>",
-            value.m_value.func.address, value.m_value.func.num_args);
+            value.m_value.func.m_addr, value.m_value.func.m_nargs);
         ucout << str;
 
         break;
@@ -73,32 +73,23 @@ void VM::Echo(StackValue &value)
 
 void VM::InvokeFunction(StackValue &value, uint8_t num_args)
 {
-    const size_t num_registers =
-        sizeof(m_exec_thread.m_regs.m_reg) / sizeof(m_exec_thread.m_regs.m_reg[0]);
-
-    if (num_args > num_registers) {
-        // more arguments than there are registers
-        char buffer[256];
-        std::sprintf(buffer, "maximum number of arguments exceeded");
-
-        ThrowException(Exception(buffer));
-    } else if (value.m_type != StackValue::FUNCTION) {
+    if (value.m_type != StackValue::FUNCTION) {
         char buffer[256];
         std::sprintf(buffer, "cannot invoke type '%s' as a function",
             value.GetTypeString());
 
         ThrowException(Exception(buffer));
-    } else if (value.m_value.func.num_args != num_args) {
+    } else if (value.m_value.func.m_nargs != num_args) {
         char buffer[256];
         std::sprintf(buffer, "expected %d parameters, received %d",
-            (int)num_args, (int)value.m_value.func.num_args);
+            (int)value.m_value.func.m_nargs, (int)num_args);
 
         ThrowException(Exception(buffer));
     } else {
         // store current address
         uint32_t previous = m_bs->Position();
         // seek to the function's address
-        m_bs->Seek(value.m_value.func.address);
+        m_bs->Seek(value.m_value.func.m_addr);
 
         while (m_bs->Position() < m_bs->Size()) {
             uint8_t code;
@@ -165,6 +156,23 @@ void VM::HandleInstruction(uint8_t code)
         StackValue sv;
         sv.m_type = StackValue::ADDRESS;
         sv.m_value.addr = value;
+
+        m_static_memory.Store(sv);
+
+        break;
+    }
+    case STORE_STATIC_FUNCTION:
+    {
+        uint32_t addr;
+        m_bs->Read(&addr);
+
+        uint8_t nargs;
+        m_bs->Read(&nargs);
+
+        StackValue sv;
+        sv.m_type = StackValue::FUNCTION;
+        sv.m_value.func.m_addr = addr;
+        sv.m_value.func.m_nargs = nargs;
 
         m_static_memory.Store(sv);
 
@@ -425,6 +433,8 @@ void VM::HandleInstruction(uint8_t code)
         assert(addr.m_type == StackValue::ADDRESS && "register must hold an address");
 
         int try_counter_before = m_exec_thread.m_exception_state.m_try_counter++;
+        // the size of the stack before, so we can revert to it on error
+        int sp_before = m_exec_thread.m_stack.GetStackPointer();
 
         while (HasNextInstruction() &&
             m_exec_thread.m_exception_state.m_try_counter != try_counter_before) {
@@ -438,10 +448,17 @@ void VM::HandleInstruction(uint8_t code)
             if (m_exec_thread.m_exception_state.m_exception_occured) {
                 // decrement the try counter
                 m_exec_thread.m_exception_state.m_try_counter--;
+
+                // pop all local variables from the stack
+                while (sp_before < m_exec_thread.m_stack.GetStackPointer()) {
+                    m_exec_thread.m_stack.Pop();
+                }
+
                 // jump to the catch block
                 m_bs->Seek(addr.m_value.addr);
-                // unset the exception flag
+                // reset the exception flag
                 m_exec_thread.m_exception_state.m_exception_occured = false;
+
                 break;
             }
         }

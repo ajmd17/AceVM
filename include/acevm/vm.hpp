@@ -66,9 +66,10 @@
 #define COMPARE_FUNCTIONS(lhs, rhs) \
     do { \
         if (rhs.m_type == StackValue::FUNCTION) { \
-            if (lhs.m_value.func.address > rhs.m_value.func.address) { \
+            if (lhs.m_value.func.m_addr > rhs.m_value.func.m_addr) { \
                 m_exec_thread.m_regs.m_flags = GREATER; \
-            } else if (lhs.m_value.func.address == rhs.m_value.func.address) { \
+            } else if (lhs.m_value.func.m_addr == rhs.m_value.func.m_addr && \
+                rhs.m_value.func.m_nargs == lhs.m_value.func.m_nargs) { \
                 m_exec_thread.m_regs.m_flags = EQUAL; \
             } else { \
                 m_exec_thread.m_regs.m_flags = NONE; \
