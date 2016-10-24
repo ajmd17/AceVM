@@ -747,6 +747,75 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case DIV:
+    {
+        uint8_t lhs_reg;
+        m_bs->Read(&lhs_reg);
+
+        uint8_t rhs_reg;
+        m_bs->Read(&rhs_reg);
+
+        uint8_t dst_reg;
+        m_bs->Read(&dst_reg);
+
+        // load values from registers
+        StackValue &lhs = m_exec_thread.m_regs[lhs_reg];
+        StackValue &rhs = m_exec_thread.m_regs[rhs_reg];
+
+        StackValue result;
+        result.m_type = MATCH_TYPES(lhs, rhs);
+
+        if (lhs.m_type == StackValue::HEAP_POINTER) {
+            // TODO: Check for '__OPR_DIV__' function and call it
+        } else if (IS_VALUE_INTEGER(lhs) && IS_VALUE_INTEGER(rhs)) {
+            int64_t left = GetValueInt64(lhs);
+            int64_t right = GetValueInt64(rhs);
+
+            if (right == 0) {
+                // division by zero
+                char buffer[256];
+                std::sprintf(buffer, "attempted to divide '%d' by 0", (int)left);
+                ThrowException(Exception(buffer));
+            } else {
+                int64_t result_value = left / right;
+
+                if (result.m_type == StackValue::INT32) {
+                    result.m_value.i32 = (int32_t)result_value;
+                } else {
+                    result.m_value.i64 = result_value;
+                }
+            }
+        } else if (IS_VALUE_FLOATING_POINT(lhs) || IS_VALUE_FLOATING_POINT(rhs)) {
+            double left = GetValueDouble(lhs);
+            double right = GetValueDouble(rhs);
+
+            if (right == 0.0) {
+                // division by zero
+                char buffer[256];
+                std::sprintf(buffer, "attempted to divide '%f' by 0", left);
+                ThrowException(Exception(buffer));
+            } else {
+                double result_value = left / right;
+
+                if (result.m_type == StackValue::FLOAT) {
+                    result.m_value.f = (float)result_value;
+                } else {
+                    result.m_value.d = result_value;
+                }
+            }
+        } else {
+            char buffer[256];
+            std::sprintf(buffer, "cannot divide types '%s' and '%s'",
+                lhs.GetTypeString(), rhs.GetTypeString());
+
+            ThrowException(Exception(buffer));
+        }
+
+        // set the desination register to be the result
+        m_exec_thread.m_regs[dst_reg] = result;
+
+        break;
+    }
     default:
         std::printf("unknown instruction '%d' referenced at location: 0x%08x\n",
             (int)code, (int)m_bs->Position());
