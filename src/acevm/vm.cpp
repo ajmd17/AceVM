@@ -178,6 +178,19 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case STORE_STATIC_TYPE:
+    {
+        uint8_t size;
+        m_bs->Read(&size);
+
+        StackValue sv;
+        sv.m_type = StackValue::TYPE_INFO;
+        sv.m_value.type_info.m_size = size;
+
+        m_static_memory.Store(sv);
+
+        break;
+    }
     case LOAD_I32:
     {
         uint8_t reg;
