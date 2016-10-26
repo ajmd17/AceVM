@@ -1,7 +1,5 @@
 #include <acevm/heap_value.hpp>
 
-#include <iostream>
-
 HeapValue::HeapValue()
     : m_holder(nullptr),
       m_ptr(nullptr),

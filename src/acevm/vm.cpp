@@ -2,20 +2,70 @@
 #include <acevm/instructions.hpp>
 #include <acevm/stack_value.hpp>
 #include <acevm/heap_value.hpp>
+#include <acevm/object.hpp>
 
 #include <common/utf8.hpp>
 
 #include <iostream>
+#include <algorithm>
 #include <cstdio>
 #include <cassert>
 
 VM::VM(BytecodeStream *bs)
-    : m_bs(bs)
+    : m_bs(bs),
+      m_max_heap_objects(GC_THRESHOLD_MIN)
 {
 }
 
 VM::~VM()
 {
+}
+
+HeapValue *VM::HeapAlloc()
+{
+    int heap_size = m_heap.Size();
+    if (heap_size >= GC_THRESHOLD_MAX) {
+        // heap overflow.
+        char buffer[256];
+        std::sprintf(buffer, "heap overflow, GC_THRESHOLD_MAX is %d", (int)GC_THRESHOLD_MAX);
+        ThrowException(Exception(buffer));
+        return nullptr;
+    } else if (heap_size >= m_max_heap_objects) {
+        // run the gc
+        MarkObjects(&m_exec_thread);
+        m_heap.Sweep();
+
+        // check if size is still over the maximum,
+        // and resize the maximum if necessary.
+        if (m_heap.Size() >= m_max_heap_objects) {
+            // resize max number of objects
+            m_max_heap_objects = std::min(
+                m_max_heap_objects + GC_THRESHOLD_STEP, GC_THRESHOLD_MAX);
+        }
+    }
+
+    return m_heap.Alloc();
+}
+
+void VM::MarkObject(StackValue &object)
+{
+    if (object.m_type == StackValue::HEAP_POINTER && object.m_value.ptr != nullptr) {
+        Object *obj_ptr = object.m_value.ptr->GetPointer<Object>();
+        if (obj_ptr != nullptr) {
+            int obj_size = obj_ptr->GetSize();
+            for (int i = 0; i < obj_size; i++) {
+                MarkObject(obj_ptr->GetMember(i));
+            }
+        }
+        object.m_value.ptr->GetFlags() |= GC_MARKED;
+    }
+}
+
+void VM::MarkObjects(ExecutionThread *thread)
+{
+    for (int i = thread->m_stack.GetStackPointer() - 1; i >= 0; i--) {
+        MarkObject(thread->m_stack[i]);
+    }
 }
 
 void VM::Echo(StackValue &value)
@@ -77,13 +127,11 @@ void VM::InvokeFunction(StackValue &value, uint8_t num_args)
         char buffer[256];
         std::sprintf(buffer, "cannot invoke type '%s' as a function",
             value.GetTypeString());
-
         ThrowException(Exception(buffer));
     } else if (value.m_value.func.m_nargs != num_args) {
         char buffer[256];
         std::sprintf(buffer, "expected %d parameters, received %d",
             (int)value.m_value.func.m_nargs, (int)num_args);
-
         ThrowException(Exception(buffer));
     } else {
         // store current address
@@ -483,6 +531,34 @@ void VM::HandleInstruction(uint8_t code)
         m_exec_thread.m_exception_state.m_try_counter--;
         break;
     }
+    case NEW:
+    {
+        uint8_t reg;
+        m_bs->Read(&reg);
+
+        uint16_t index;
+        m_bs->Read(&index);
+
+        // read value from static memory
+        StackValue &type_sv = m_static_memory[index];
+        assert(type_sv.m_type == StackValue::TYPE_INFO && "object must be type info");
+
+        // get number of data members
+        int size = type_sv.m_value.type_info.m_size;
+
+        // allocate heap object
+        HeapValue *hv = HeapAlloc();
+        if (hv != nullptr) {
+            hv->Assign(Object(size));
+
+            // assign register value to the allocated object
+            StackValue &sv = m_exec_thread.m_regs[reg];
+            sv.m_type = StackValue::HEAP_POINTER;
+            sv.m_value.ptr = hv;
+        }
+
+        break;
+    }
     case CMP:
     {
         uint8_t lhs_reg;
@@ -787,7 +863,7 @@ void VM::HandleInstruction(uint8_t code)
             if (right == 0) {
                 // division by zero
                 char buffer[256];
-                std::sprintf(buffer, "attempted to divide '%d' by 0", (int)left);
+                std::sprintf(buffer, "attempted to divide '%d' by zero", (int)left);
                 ThrowException(Exception(buffer));
             } else {
                 int64_t result_value = left / right;
@@ -805,7 +881,7 @@ void VM::HandleInstruction(uint8_t code)
             if (right == 0.0) {
                 // division by zero
                 char buffer[256];
-                std::sprintf(buffer, "attempted to divide '%f' by 0", left);
+                std::sprintf(buffer, "attempted to divide '%f' by zero", left);
                 ThrowException(Exception(buffer));
             } else {
                 double result_value = left / right;

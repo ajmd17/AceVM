@@ -1,5 +1,7 @@
 #include <acevm/heap_memory.hpp>
 
+#include <iostream>
+
 std::ostream &operator<<(std::ostream &os, const Heap &heap)
 {
     HeapNode *tmp_head = heap.m_head;
@@ -32,11 +34,18 @@ Heap::~Heap()
 HeapValue *Heap::Alloc()
 {
     HeapNode *node = new HeapNode;
+    node->value.GetFlags() |= GC_MARKED; // mark objects on first allocation
+
     if (m_head != nullptr) {
         m_head->after = node;
     }
     node->before = m_head;
     m_head = node;
+
+    m_num_objects++;
+
+    std::cout << "Alloc() called\n";
+
     return &m_head->value;
 }
 

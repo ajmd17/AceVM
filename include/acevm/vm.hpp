@@ -12,6 +12,10 @@
 #include <cstdint>
 #include <cstdio>
 
+#define GC_THRESHOLD_STEP 50
+#define GC_THRESHOLD_MIN 50
+#define GC_THRESHOLD_MAX 1000
+
 #define THROW_COMPARISON_ERROR(lhs, rhs) \
     do { \
         char buffer[256]; \
@@ -79,7 +83,7 @@
         } \
     } while(0)
 
-enum CompareFlags : int32_t {
+enum CompareFlags : int {
     NONE = 0x00,
     EQUAL = 0x01,
     GREATER = 0x02,
@@ -91,7 +95,7 @@ enum CompareFlags : int32_t {
 
 struct Registers {
     StackValue m_reg[8];
-    int32_t m_flags = 0;
+    int m_flags = 0;
 
     inline StackValue &operator[](uint8_t index)
     {
@@ -124,6 +128,9 @@ public:
     inline Heap &GetHeap() { return m_heap; }
     inline ExecutionThread &GetExecutionThread() { return m_exec_thread; }
 
+    HeapValue *HeapAlloc();
+    void MarkObject(StackValue &object);
+    void MarkObjects(ExecutionThread *thread);
     void Echo(StackValue &value);
     void InvokeFunction(StackValue &value, uint8_t num_args);
     void HandleInstruction(uint8_t code);
@@ -133,6 +140,7 @@ private:
     StaticMemory m_static_memory;
     Heap m_heap;
     ExecutionThread m_exec_thread;
+    int m_max_heap_objects;
 
     BytecodeStream *m_bs;
 

@@ -18,6 +18,8 @@ public:
     Heap(const Heap &other) = delete;
     ~Heap();
 
+    inline size_t Size() const { return m_num_objects; }
+
     /** Allocate a new value on the heap. */
     HeapValue *Alloc();
     /** Delete all nodes that are not marked */
