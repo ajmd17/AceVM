@@ -118,6 +118,14 @@ void VM::Echo(StackValue &value)
 
         break;
     }
+    case StackValue::TYPE_INFO:
+    {
+        char str[256];
+        std::sprintf(str, "type<%du>", value.m_value.type_info.m_size);
+        ucout << str;
+
+        break;
+    }
     }
 }
 
