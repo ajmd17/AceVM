@@ -1,8 +1,10 @@
-#include <common/utf8.hpp> 
+#include <common/utf8.hpp>
+
+namespace utf {
 
 int utf8_strlen(const char *str)
 {
-    int max = strlen(str);
+    int max = std::strlen(str);
     int count = 0;
 
     for (int i = 0; i < max; i++, count++) {
@@ -118,7 +120,7 @@ char *utf8_strncpy(char *dst, const char *src, size_t n)
     size_t i = 0;
     size_t count = 0;
 
-    size_t max = strlen(dst) + 1;
+    size_t max = std::strlen(dst) + 1;
 
     for (; src[i] != '\0'; i++, count++) {
 
@@ -178,7 +180,7 @@ char *utf8_strcat(char *dst, const char *src)
     while (*dst) {
         dst++;
     }
-    while (*dst++ = *src++);
+    while ((*dst++ = *src++));
     return --dst;
 }
 
@@ -187,13 +189,13 @@ u32char *utf32_strcat(u32char *dst, const u32char *src)
     while (*dst) {
         dst++;
     }
-    while (*dst++ = *src++);
+    while ((*dst++ = *src++));
     return --dst;
 }
 
 u32char char8to32(const char *str)
 {
-    int num_bytes = strlen(str);
+    int num_bytes = std::strlen(str);
     if (num_bytes > sizeof(u32char)) {
         // not wide enough to store the character
         return -1;
@@ -256,7 +258,7 @@ void utf8to32(const char *src, u32char *dst, int size)
 
 u32char utf8_charat(const char *str, int index)
 {
-    int max = strlen(str);
+    int max = std::strlen(str);
     int count = 0;
 
     for (int i = 0; i < max; i++, count++) {
@@ -315,7 +317,7 @@ Utf8String::Utf8String(size_t size)
       m_size(size + 1),
       m_length(0)
 {
-    memset(m_data, 0, m_size);
+    std::memset(m_data, 0, m_size);
 }
 
 Utf8String::Utf8String(const char *str)
@@ -327,9 +329,9 @@ Utf8String::Utf8String(const char *str)
         m_length = 0;
     } else {
         // copy raw bytes
-        m_size = strlen(str) + 1;
+        m_size = std::strlen(str) + 1;
         m_data = new char[m_size];
-        strcpy(m_data, str);
+        std::strcpy(m_data, str);
         // recalculate length
         m_length = utf8_strlen(m_data);
     }
@@ -338,9 +340,9 @@ Utf8String::Utf8String(const char *str)
 Utf8String::Utf8String(const Utf8String &other)
 {
     // copy raw bytes
-    m_size = strlen(other.m_data) + 1;
+    m_size = std::strlen(other.m_data) + 1;
     m_data = new char[m_size];
-    strcpy(m_data, other.m_data);
+    std::strcpy(m_data, other.m_data);
     m_length = other.m_length;
 }
 
@@ -364,9 +366,9 @@ Utf8String &Utf8String::operator=(const char *str)
         m_length = 0;
     } else {
         // copy raw bytes
-        m_size = strlen(str) + 1;
+        m_size = std::strlen(str) + 1;
         m_data = new char[m_size];
-        strcpy(m_data, str);
+        std::strcpy(m_data, str);
         // recalculate length
         m_length = utf8_strlen(m_data);
     }
@@ -381,9 +383,9 @@ Utf8String &Utf8String::operator=(const Utf8String &other)
     }
 
     // copy raw bytes
-    m_size = strlen(other.m_data) + 1;
+    m_size = std::strlen(other.m_data) + 1;
     m_data = new char[m_size];
-    strcpy(m_data, other.m_data);
+    std::strcpy(m_data, other.m_data);
     m_length = other.m_length;
 
     return *this;
@@ -417,11 +419,11 @@ Utf8String Utf8String::operator+(const Utf8String &other) const
 
 Utf8String &Utf8String::operator+=(const char *str)
 {
-    size_t this_len = strlen(m_data);
-    size_t other_len = strlen(str);
+    size_t this_len = std::strlen(m_data);
+    size_t other_len = std::strlen(str);
 
     if (this_len + other_len < m_size) {
-        strcat(m_data, str);
+        std::strcat(m_data, str);
         m_size += other_len;
         // calculate utf-8 length of string and add it
         m_length += utf8_strlen(str);
@@ -430,8 +432,8 @@ Utf8String &Utf8String::operator+=(const char *str)
         m_size = this_len + other_len + 1;
 
         char *new_data = new char[m_size];
-        strcpy(new_data, m_data);
-        strcat(new_data, str);
+        std::strcpy(new_data, m_data);
+        std::strcat(new_data, str);
         delete[] m_data;
         m_data = new_data;
         // recalculate length
@@ -467,3 +469,5 @@ utf8_ostream &operator<<(utf8_ostream &os, const Utf8String &str)
 #endif
     return os;
 }
+
+} // namespace utf

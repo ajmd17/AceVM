@@ -70,62 +70,51 @@ void VM::MarkObjects(ExecutionThread *thread)
 
 void VM::Echo(StackValue &value)
 {
+    // string buffer for printing datatype
+    char str[256];
+
     switch (value.m_type) {
     case StackValue::INT32:
-        ucout << value.m_value.i32;
+        utf::cout << value.m_value.i32;
         break;
     case StackValue::INT64:
-        ucout << value.m_value.i64;
+        utf::cout << value.m_value.i64;
         break;
     case StackValue::FLOAT:
-        ucout << value.m_value.f;
+        utf::cout << value.m_value.f;
         break;
     case StackValue::DOUBLE:
-        ucout << value.m_value.d;
+        utf::cout << value.m_value.d;
         break;
     case StackValue::BOOLEAN:
-        ucout << (value.m_value.b ? "true" : "false");
+        utf::cout << (value.m_value.b ? "true" : "false");
         break;
     case StackValue::HEAP_POINTER:
         if (value.m_value.ptr == nullptr) {
-            // special case for null references
-            ucout << "null";
-        } else if (value.m_value.ptr->TypeCompatible<Utf8String>()) {
+            // special case for null pointers
+            utf::cout << "null";
+        } else if (value.m_value.ptr->TypeCompatible<utf::Utf8String>()) {
             // print string value
-            ucout << value.m_value.ptr->Get<Utf8String>();
+            utf::cout << value.m_value.ptr->Get<utf::Utf8String>();
         } else {
-            // print address
-            char str[256];
-            std::sprintf(str, "reference<%p>", (void*)value.m_value.ptr);
-            ucout << str;
+            std::sprintf(str, "object<%p>", (void*)value.m_value.ptr);
+            utf::cout << str;
         }
 
         break;
     case StackValue::FUNCTION:
-    {
-        char str[256];
         std::sprintf(str, "function<%du, %du>",
             value.m_value.func.m_addr, value.m_value.func.m_nargs);
-        ucout << str;
-
+        utf::cout << str;
         break;
-    }
     case StackValue::ADDRESS:
-    {
-        char str[256];
         std::sprintf(str, "address<%du>", value.m_value.addr);
-        ucout << str;
-
+        utf::cout << str;
         break;
-    }
     case StackValue::TYPE_INFO:
-    {
-        char str[256];
         std::sprintf(str, "type<%du>", value.m_value.type_info.m_size);
-        ucout << str;
-
+        utf::cout << str;
         break;
-    }
     }
 }
 
@@ -192,7 +181,7 @@ void VM::HandleInstruction(uint8_t code)
         // the value will be freed on
         // the destructor call of m_static_memory
         HeapValue *hv = new HeapValue();
-        hv->Assign(Utf8String(str));
+        hv->Assign(utf::Utf8String(str));
 
         StackValue sv;
         sv.m_type = StackValue::HEAP_POINTER;
@@ -407,7 +396,7 @@ void VM::HandleInstruction(uint8_t code)
     }
     case ECHO_NEWLINE:
     {
-        ucout << "\n";
+        utf::cout << "\n";
 
         break;
     }

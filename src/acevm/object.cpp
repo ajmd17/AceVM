@@ -29,9 +29,11 @@ Object &Object::operator=(const Object &other)
 
     m_size = other.m_size;
     m_members = new StackValue[other.m_size];
-    
+
     // copy all members
     for (int i = 0; i < m_size; i++) {
         m_members[i] = other.m_members[i];
     }
+
+    return *this;
 }

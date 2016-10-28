@@ -6,8 +6,8 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
 #ifdef __MINGW32__
 #undef _WIN32
@@ -20,12 +20,14 @@
 #include <io.h>
 #endif
 
+namespace utf {
+
 #ifdef _WIN32
 typedef std::wostream utf8_ostream;
-static utf8_ostream &ucout = std::wcout;
+static utf8_ostream &cout = std::wcout;
 #else
 typedef std::ostream utf8_ostream;
-static utf8_ostream &ucout = std::cout;
+static utf8_ostream &cout = std::cout;
 #endif
 
 typedef uint32_t u32char;
@@ -37,10 +39,7 @@ inline void utf8_init()
 #endif
 }
 
-inline char *utf32_get_bytes(u32char &ch)
-{
-    return reinterpret_cast<char*>(&ch);
-}
+inline char *utf32_get_bytes(u32char &ch) { return reinterpret_cast<char*>(&ch); }
 
 inline bool utf32_isspace(u32char ch)
 {
@@ -52,13 +51,13 @@ inline bool utf32_isspace(u32char ch)
 
 inline bool utf32_isdigit(u32char ch)
 {
-    return ((u32char)ch >= '0') && ((u32char)ch <= '9');
+    return (ch >= (u32char)'0') && (ch <= (u32char)'9');
 }
 
 inline bool utf32_isalpha(u32char ch)
 {
     return (ch >= 0xC0) || ((ch >= (u32char)'A' && ch <= (u32char)'Z') ||
-        (ch >= (u32char)'a' && ch <= (u32char)'z'));
+                            (ch >= (u32char)'a' && ch <= (u32char)'z'));
 }
 
 int utf8_strlen(const char *str);
@@ -92,16 +91,42 @@ public:
     Utf8String &operator=(const char *str);
     Utf8String &operator=(const Utf8String &other);
 
-    inline bool operator==(const char *str) const { return !(strcmp(m_data, str)); }
-    inline bool operator==(const Utf8String &other) const { return !(strcmp(m_data, other.m_data)); }
-    inline bool operator<(const char *str) const { return (utf8_strcmp(m_data, str) == -1); }
-    inline bool operator<(const Utf8String &other) const { return (utf8_strcmp(m_data, other.m_data) == -1); }
-    inline bool operator<=(const char *str) const { return !(strcmp(m_data, str)) || (utf8_strcmp(m_data, str) == -1); }
-    inline bool operator<=(const Utf8String &other) const { return !(strcmp(m_data, other.m_data)) || (utf8_strcmp(m_data, other.m_data) == -1); }
-    inline bool operator>(const char *str) const { return (utf8_strcmp(m_data, str) == 1); }
-    inline bool operator>(const Utf8String &other) const { return (utf8_strcmp(m_data, other.m_data) == 1); }
-    inline bool operator>=(const char *str) const { return !(strcmp(m_data, str)) || (utf8_strcmp(m_data, str) == 1); }
-    inline bool operator>=(const Utf8String &other) const { return !(strcmp(m_data, other.m_data)) || (utf8_strcmp(m_data, other.m_data) == 1); }
+    inline bool operator==(const char *str) const
+        { return !(strcmp(m_data, str)); }
+    inline bool operator==(const Utf8String &other) const
+        { return !(strcmp(m_data, other.m_data)); }
+    inline bool operator<(const char *str) const
+        { return (utf8_strcmp(m_data, str) == -1); }
+    inline bool operator<(const Utf8String &other) const
+        { return (utf8_strcmp(m_data, other.m_data) == -1); }
+    inline bool operator>(const char *str) const
+        { return (utf8_strcmp(m_data, str) == 1); }
+    inline bool operator>(const Utf8String &other) const
+        { return (utf8_strcmp(m_data, other.m_data) == 1); }
+
+    inline bool operator<=(const char *str) const
+    {
+        int i = utf8_strcmp(m_data, str);
+        return i == 0 || i == -1;
+    }
+
+    inline bool operator<=(const Utf8String &other) const
+    {
+        int i = utf8_strcmp(m_data, other.m_data);
+        return i == 0 || i == -1;
+    }
+
+    inline bool operator>=(const char *str) const
+    {
+        int i = utf8_strcmp(m_data, str);
+        return i == 0 || i == 1;
+    }
+
+    inline bool operator>=(const Utf8String &other) const
+    {
+        int i = utf8_strcmp(m_data, other.m_data);
+        return i == 0 || i == 1;
+    }
 
     Utf8String operator+(const char *str) const;
     Utf8String operator+(const Utf8String &other) const;
@@ -116,5 +141,7 @@ private:
     size_t m_size; // buffer size (not length)
     size_t m_length;
 };
+
+} // namespace utf
 
 #endif

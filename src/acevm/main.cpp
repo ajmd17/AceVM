@@ -33,15 +33,15 @@ int main(int argc, char *argv[])
     start = std::chrono::high_resolution_clock::now();
 
     if (argc == 1) {
-        ucout << "\tUsage: " << argv[0] << " <file>\n";
+        utf::cout << "\tUsage: " << argv[0] << " <file>\n";
 
     } else if (argc >= 2) {
-        Utf8String filename(argv[1]);
+        utf::Utf8String filename(argv[1]);
 
         // load bytecode from file
         std::ifstream file(filename.GetData(), std::ios::in | std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            ucout << "Could not open file " << filename << "\n";
+            utf::cout << "Could not open file " << filename << "\n";
             return 1;
         }
 
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 
         end = std::chrono::high_resolution_clock::now();
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(end - start).count();
-        ucout << "Elapsed time: " << elapsed_ms << "s\n";
+        utf::cout << "Elapsed time: " << elapsed_ms << "s\n";
     }
 
     return 0;
