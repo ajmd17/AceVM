@@ -321,6 +321,36 @@ void VM::HandleInstruction(uint8_t code)
 
         break;
     }
+    case LOAD_MEM:
+    {
+        uint8_t dst;
+        m_bs->Read(&dst);
+
+        uint8_t src;
+        m_bs->Read(&src);
+
+        uint8_t idx;
+        m_bs->Read(&idx);
+
+        StackValue &sv = m_exec_thread.m_regs[src];
+        assert(sv.m_type == StackValue::HEAP_POINTER && "source must be a pointer");
+
+        HeapValue *hv = sv.m_value.ptr;
+        if (hv == nullptr) {
+            // null reference exception.
+            ThrowException(Exception("attempted to access a member of a null object"));
+        } else {
+            Object *objptr = nullptr;
+            if ((objptr = hv->GetPointer<Object>()) != nullptr) {
+                assert(idx < objptr->GetSize() && "member index out of bounds");
+                m_exec_thread.m_regs[dst] = objptr->GetMember(idx);
+            } else {
+                ThrowException(Exception("not a standard object"));
+            }
+        }
+
+        break;
+    }
     case LOAD_NULL:
     {
         uint8_t reg;
@@ -365,6 +395,36 @@ void VM::HandleInstruction(uint8_t code)
         // copy value from register to stack value at (sp - offset)
         m_exec_thread.m_stack[m_exec_thread.m_stack.GetStackPointer() - offset] =
             m_exec_thread.m_regs[reg];
+
+        break;
+    }
+    case MOV_MEM:
+    {
+        uint8_t dst;
+        m_bs->Read(&dst);
+
+        uint8_t idx;
+        m_bs->Read(&idx);
+
+        uint8_t src;
+        m_bs->Read(&src);
+
+        StackValue &sv = m_exec_thread.m_regs[dst];
+        assert(sv.m_type == StackValue::HEAP_POINTER && "destination must be a pointer");
+
+        HeapValue *hv = sv.m_value.ptr;
+        if (hv == nullptr) {
+            // null reference exception.
+            ThrowException(Exception("attempted to store a member to a null object"));
+        } else {
+            Object *objptr = nullptr;
+            if ((objptr = hv->GetPointer<Object>()) != nullptr) {
+                assert(idx < objptr->GetSize() && "member index out of bounds");
+                objptr->GetMember(idx) = m_exec_thread.m_regs[src];
+            } else {
+                ThrowException(Exception("not a standard object"));
+            }
+        }
 
         break;
     }
