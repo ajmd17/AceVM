@@ -34,6 +34,8 @@ HeapValue *VM::HeapAlloc()
         // run the gc
         MarkObjects(&m_exec_thread);
         m_heap.Sweep();
+        utf::cout << "Garbage collection ran.\n";
+        utf::cout << "\tm_heap.Size() = " << m_heap.Size() << "\n";
 
         // check if size is still over the maximum,
         // and resize the maximum if necessary.
